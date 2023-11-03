@@ -1,4 +1,3 @@
-# train from scratch
 import os
 from dataclasses import dataclass, field
 from typing import Optional
