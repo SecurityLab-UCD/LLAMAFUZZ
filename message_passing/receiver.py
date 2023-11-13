@@ -31,12 +31,15 @@ def process_messages():
                 print(f"Interpret as string: {str_message}")
                 with lock:
                     p_messsage = str_message
+
             elif mtype == TYPE_TWODOUBLES:
                 two_doubles = struct.unpack("dd", message)
                 print(f"Interpret as two doubles: {two_doubles}")
+
             elif mtype == TYPE_NUMPY:
                 numpy_message = np.frombuffer(message, dtype=np.int8)
                 print(f"Interpret as numpy: {numpy_message}")
+
             elif mtype == TYPE_DOUBLEANDNUMPY:
                 one_double = struct.unpack("d", message[:SIZEOF_FLOAT])[0]
                 numpy_message = np.frombuffer(message[SIZEOF_FLOAT:], dtype=np.int8)
