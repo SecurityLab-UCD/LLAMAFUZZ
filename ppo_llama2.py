@@ -22,6 +22,7 @@ from threading import Thread
 from hashlib import sha256
 import sysv_ipc
 import time
+import struct
 
 tqdm.pandas()
 
@@ -33,29 +34,38 @@ TYPE_EMPTY_SEED = 4
 model_name = "meta-llama/Llama-2-7b-chat-hf"
 output_dir = "./result"
 message_queue = []
-hashmap = {}
+seed_id_map = {}
+id_rwd_map = {}
+uid = 0
 
 
 def mq_thread():
     global message_queue, hashmap
     mq = sysv_ipc.MessageQueue(1234, sysv_ipc.IPC_CREAT)
+    rw_mq = sysv_ipc.MessageQueue(4321, sysv_ipc.IPC_CREAT)
     while True:
         # receive msg
         msg, mtype = mq.receive()
+        rw_msg, rw_mtype = rw_mq.receive()
         if mtype == TYPE_REQUEST:
             print("RECEIVE REQUEST")
             if not message_queue == []:
-                # send seed
-                print("SEND SEED queue", message_queue)
-                mq.send(message_queue.pop(0), True, type=TYPE_SEED)
+                # send uid + seed
+                seed = message_queue.pop(0)
+                mq.send(
+                    struct.pack("I", uid) + seed.encode("utf-8"), True, type=TYPE_SEED
+                )
+                seed_id_map[seed] = uid
+                id_rwd_map[uid] = 0.0
+                uid += 1
             else:
                 print("SEND EMPTY SEED")
                 # send empty str do default muatation
                 mq.send("", True, type=TYPE_EMPTY_SEED)
-        # it is reward msg
-        elif mtype == TYPE_REWARD:
-            decoded_msg = msg.decode("utf-8")
-            hashmap[sha256(decoded_msg[0]).hexdigest()] = decoded_msg[1]
+        # receive reward msg(uid + reward)
+        if rw_mtype == TYPE_REWARD:
+            decoded_msg = struct.unpack("ii", rw_msg)
+            id_rwd_map[decoded_msg[0]] = decoded_msg[1]
 
 
 def hex_string_to_hex(hex_string):
@@ -261,7 +271,7 @@ def main():
         # need wait for 0.1s for response?
         time.sleep(0.1)
         rewards = [
-            torch.tensor(hashmap[sha256(i.encode("utf-8")).hexdigest()])
+            torch.tensor(id_rwd_map[seed_id_map[i.encode("utf-8")]])
             for i in batch["response"]
         ]
         print(rewards)

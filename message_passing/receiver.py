@@ -31,6 +31,11 @@ def process_messages():
                 print(f"Interpret as string: {str_message}")
                 with lock:
                     p_messsage = str_message
+            elif mtype == TYPE_REWARD:
+                print("received")
+                # two_int = struct.unpack("ii", message)
+                # # # two_ints = struct.unpack("I", message.data_buff)
+                # print(f"Interpret as two ints: {two_int}")
 
             elif mtype == TYPE_TWODOUBLES:
                 two_doubles = struct.unpack("dd", message)
@@ -64,4 +69,4 @@ if __name__ == "__main__":
     message_processing_thread.start()
 
     # Start the main thread to print "Hello" continuously
-    print_hello()
+    # print_hello()

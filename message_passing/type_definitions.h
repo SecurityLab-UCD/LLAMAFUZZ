@@ -1,4 +1,4 @@
-
+int TYPE_REWARD = 5;
 int TYPE_STRING = 1;
 int TYPE_TWODOUBLES = 2;
 int TYPE_ARRAY = 3;
