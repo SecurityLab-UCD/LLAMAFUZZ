@@ -19,10 +19,11 @@ from trl.core import LengthSampler
 from PIL import Image
 
 from threading import Thread
-from hashlib import sha256
+import re
 import sysv_ipc
 import time
 import struct
+
 
 tqdm.pandas()
 
@@ -40,7 +41,7 @@ uid = 0
 
 
 def mq_thread():
-    global message_queue, hashmap
+    global message_queue, seed_id_map, id_rwd_map
     mq = sysv_ipc.MessageQueue(1234, sysv_ipc.IPC_CREAT)
     rw_mq = sysv_ipc.MessageQueue(4321, sysv_ipc.IPC_CREAT)
     while True:
@@ -53,11 +54,10 @@ def mq_thread():
                 # send uid + seed
                 seed = message_queue.pop(0)
                 mq.send(
-                    struct.pack("I", uid) + seed.encode("utf-8"), True, type=TYPE_SEED
+                    struct.pack("I", seed_id_map[seed]) + seed.encode("utf-8"),
+                    True,
+                    type=TYPE_SEED,
                 )
-                seed_id_map[seed] = uid
-                id_rwd_map[uid] = 0.0
-                uid += 1
             else:
                 print("SEND EMPTY SEED")
                 # send empty str do default muatation
@@ -69,7 +69,12 @@ def mq_thread():
 
 
 def hex_string_to_hex(hex_string):
-    hex_values = hex_string.replace(",", " ").replace("0x", " ")
+    hex_string = hex_string.replace(
+        "Generate a JPEG example in hex format. Make sure the example is complete and valid. Only return the solution, no other words.\n",
+        " ",
+    )
+    hex_string = re.sub(r"[^a-zA-Z0-9\s]", " ", hex_string)
+    hex_values = hex_string.replace("0x", " ")
 
     sections = hex_values.split()  # Split the string into sections
 
@@ -260,20 +265,28 @@ def main():
         # batch["ref_response"] = tokenizer.batch_decode(ref_response_tensors)
 
         # Compute sentiment score
+        global uid, seed_id_map, id_rwd_map, message_queue
+        seed_batch = []
         for r in batch["response"]:
             # set default rewards to 0
-            hashmap[sha256(r.encode("utf-8")).hexdigest()] = 0.0
-            message_queue.append(r)
+            seed = hex_string_to_hex(r)
+            seed_id_map[seed] = uid
+            id_rwd_map[uid] = 0.0
+            uid += 1
+            message_queue.append(seed)
+            seed_batch.append(seed)
             print("MESSAGE:::")
-            print(r, "\nresponse appende to mq")
+            print(seed, "\nresponse appende to mq")
+
+        with open("./mq.txt", "w") as file:
+            # Write each element of the list to a new line in the file
+            for item in message_queue:
+                file.write("%s\n" % item)
 
         # iterate msgs record reward
         # need wait for 0.1s for response?
         time.sleep(0.1)
-        rewards = [
-            torch.tensor(id_rwd_map[seed_id_map[i.encode("utf-8")]])
-            for i in batch["response"]
-        ]
+        rewards = [torch.tensor(id_rwd_map[seed_id_map[i]]) for i in seed_batch]
         print(rewards)
 
         # Run PPO step
