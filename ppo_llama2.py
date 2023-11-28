@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Optional
-
+import os
 import torch
 import tyro
 from accelerate import Accelerator
@@ -18,7 +18,7 @@ from trl import (
 from trl.core import LengthSampler
 from PIL import Image
 
-from threading import Thread
+import threading
 import re
 import sysv_ipc
 import time
@@ -27,50 +27,62 @@ import struct
 
 tqdm.pandas()
 
-TYPE_REQUEST = 1
-TYPE_REWARD = 2
-TYPE_SEED = 3
-TYPE_EMPTY_SEED = 4
+TYPE_SEED = 1
+TYPE_EMPTY_SEED = 2
+TYPE_REWARD = 3
+TYPE_REQUEST = 4
 
-model_name = "meta-llama/Llama-2-7b-chat-hf"
 output_dir = "./result"
 message_queue = []
 seed_id_map = {}
 id_rwd_map = {}
-uid = 0
+uid = 1
+shared_resource_lock = threading.Lock()
 
 
 def mq_thread():
-    global message_queue, seed_id_map, id_rwd_map
-    mq = sysv_ipc.MessageQueue(1234, sysv_ipc.IPC_CREAT)
-    rw_mq = sysv_ipc.MessageQueue(4321, sysv_ipc.IPC_CREAT)
+    global message_queue, seed_id_map
+    try:
+        mq = sysv_ipc.MessageQueue(1234, sysv_ipc.IPC_CREAT)
+    except sysv_ipc.ExistentialError:
+        print(f"Message queue with key {1234} already exists.")
+        return
+    while True:
+        # only receive request msg
+        msg, mtype = mq.receive(type=TYPE_REQUEST)
+        if not message_queue == []:
+            # send uid + seed
+            seed = message_queue.pop(0)
+            mq.send(
+                struct.pack("I", seed_id_map[seed]) + seed.encode("utf-8"),
+                True,
+                type=TYPE_SEED,
+            )
+        else:
+            # send empty str do default muatation
+            mq.send("", True, type=TYPE_EMPTY_SEED)
+
+
+def reward_thread():
+    global id_rwd_map
+    try:
+        # Create a new message queue or get an existing one
+        rw_mq = sysv_ipc.MessageQueue(4321, sysv_ipc.IPC_CREAT)
+    except sysv_ipc.ExistentialError:
+        print(f"Message queue with key {4321} already exists.")
+        return
     while True:
         # receive msg
-        msg, mtype = mq.receive()
-        rw_msg, rw_mtype = rw_mq.receive()
-        if mtype == TYPE_REQUEST:
-            print("RECEIVE REQUEST")
-            if not message_queue == []:
-                # send uid + seed
-                seed = message_queue.pop(0)
-                mq.send(
-                    struct.pack("I", seed_id_map[seed]) + seed.encode("utf-8"),
-                    True,
-                    type=TYPE_SEED,
-                )
-            else:
-                print("SEND EMPTY SEED")
-                # send empty str do default muatation
-                mq.send("", True, type=TYPE_EMPTY_SEED)
+        rw_msg, rw_mtype = rw_mq.receive(type=TYPE_REWARD)
         # receive reward msg(uid + reward)
-        if rw_mtype == TYPE_REWARD:
-            decoded_msg = struct.unpack("ii", rw_msg)
-            id_rwd_map[decoded_msg[0]] = decoded_msg[1]
+        decoded_msg = struct.unpack("ii", rw_msg)
+        print("RECEIVE seedid", decoded_msg[0], " REWARDS", decoded_msg[1])
+        id_rwd_map[decoded_msg[0]] = float(decoded_msg[1])
 
 
 def hex_string_to_hex(hex_string):
     hex_string = hex_string.replace(
-        "Generate a JPEG example in hex format. Make sure the example is complete and valid. Only return the solution, no other words.\n",
+        "Generate a JPG example in hex format. Make sure the example is complete and valid. Only return the solution, no other words.",
         " ",
     )
     hex_string = re.sub(r"[^a-zA-Z0-9\s]", " ", hex_string)
@@ -88,7 +100,7 @@ def hex_string_to_hex(hex_string):
             result.append(section)
 
     # Join the sections back together with spaces
-    return " ".join(result)
+    return "".join(result)
 
 
 @dataclass
@@ -237,16 +249,8 @@ def main():
         enable_flash=True, enable_math=False, enable_mem_efficient=False
     )
 
-    t = Thread(
-        target=mq_thread,
-        args=(),
-    )
-    t.start()
-
     for epoch, batch in tqdm(enumerate(ppo_trainer.dataloader)):
         query_tensors = batch["input_ids"]
-        print("Start generate")
-
         ppo_trainer.accelerator.unwrap_model(model).gradient_checkpointing_disable()
 
         response_tensors = ppo_trainer.generate(
@@ -255,7 +259,7 @@ def main():
             length_sampler=LengthSampler(2, 1028),
             **generation_kwargs,
         )
-        print("End generate")
+        print("end generate")
 
         ppo_trainer.accelerator.unwrap_model(model).gradient_checkpointing_enable()
 
@@ -267,25 +271,22 @@ def main():
         # Compute sentiment score
         global uid, seed_id_map, id_rwd_map, message_queue
         seed_batch = []
+        # i = 1
         for r in batch["response"]:
             # set default rewards to 0
             seed = hex_string_to_hex(r)
-            seed_id_map[seed] = uid
-            id_rwd_map[uid] = 0.0
-            uid += 1
+            shared_resource_lock.acquire()
+            # i += 1
+            print("SEED ", uid + os.getpid(), " :")
+            seed_id_map[seed] = uid + os.getpid()
+            id_rwd_map[uid + os.getpid()] = 0.0
+            shared_resource_lock.release()
             message_queue.append(seed)
             seed_batch.append(seed)
-            print("MESSAGE:::")
-            print(seed, "\nresponse appende to mq")
-
-        with open("./mq.txt", "w") as file:
-            # Write each element of the list to a new line in the file
-            for item in message_queue:
-                file.write("%s\n" % item)
-
+        uid += 8
         # iterate msgs record reward
         # need wait for 0.1s for response?
-        time.sleep(0.1)
+        time.sleep(1.1)
         rewards = [torch.tensor(id_rwd_map[seed_id_map[i]]) for i in seed_batch]
         print(rewards)
 
@@ -299,4 +300,11 @@ def main():
 
 
 if __name__ == "__main__":
+    t = threading.Thread(
+        target=mq_thread,
+        args=(),
+    )
+    t2 = threading.Thread(target=reward_thread, args=())
+    t.start()
+    t2.start()
     main()
