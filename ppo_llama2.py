@@ -119,7 +119,7 @@ def hex_string_to_hex(hex_string):
 
 @dataclass
 class ScriptArguments:
-    dataset_path: str = "../dataset/cleaneddata/jpg_question.csv"
+    dataset_path: str = "./prompt/jpg_question.csv"
     ppo_config: PPOConfig = field(
         default_factory=lambda: PPOConfig(
             steps=10,
