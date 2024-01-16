@@ -1,213 +1,214 @@
 import os
-from transformers import AutoTokenizer, LlamaForCausalLM
+from dataclasses import dataclass, field
+from typing import Optional
+
 import torch
+from accelerate import Accelerator
 from datasets import load_dataset
+from peft import AutoPeftModelForCausalLM, LoraConfig
+from tqdm import tqdm
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
     BitsAndBytesConfig,
     HfArgumentParser,
     TrainingArguments,
-    pipeline,
-    logging,
 )
-from accelerate import Accelerator, infer_auto_device_map, init_empty_weights
-from peft import LoraConfig, PeftModel, get_peft_model, prepare_model_for_int8_training
+
 from trl import SFTTrainer
-
-# model = LlamaForCausalLM.from_pretrained("meta-llama/Llama-2-7b-chat-hf")
-# tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-chat-hf")
-model_name = "meta-llama/Llama-2-7b-chat-hf"
-new_model = "llama-2-7b-structured-jpg-20"
-
-os.environ["TORCH_DISTRIBUTED_DEBUG"] = "DETAIL"
+from trl.trainer import ConstantLengthDataset
 
 
-def formatting_prompts_func(examples):
-    output_texts = []
-
-    for i in range(len(examples["context"])):
-        text = f"### Input: ```Generate a JPEG example in base64 encoded. Make sure the example is complete and valid. Only return the solution, no other words. Here is the text description you can refer A JPEG image is represented as a sequence of segments where each segment begins with a marker. Each marker starts with 0xFF byte followed by marker flag to represent the type of marker. The payload followed by marker is different as per marker type. Common JPEG marker types are as listed below:Short Name Bytes	Payload	Name Comments```\n```SOI	0xFF, 0xD8 none Start of Image```\n ```S0F0 0xFF, 0xC0	variable size Start of Frame``` \n```S0F2 0xFF, 0xC2	variable size Start fo Frame```\n```DHT	0xFF, 0xC4	variable size Define Huffman Tables```\n```DQT	0xFF, 0xDB	variable size Define Quantization Table(s)```\n```DRI	0xFF, 0xDD	4 bytes	Define Restart Interval```\n```SOS	0xFF, 0xDA	variable size	Start Of Scan```\n```RSTn 0xFF, 0xD//n//(//n//#0..7) none Restart```\n```APPn 0xFF, 0xE//n// variable size Application specific```\n```COM	0xFF, 0xFE variable size Comment```\n```EOI	0xFF, 0xD9	none End Of Image```\n```Within the entropy-coded data, after any 0xFF byte, a 0x00 byte is inserted by the encoder before the next byte, so that there does not appear to be a marker where none is intended, preventing framing errors. Decoders must skip this 0x00 byte. This technique, called byte stuffing (see JPEG specification section F.1.2.3), is only applied to the entropy-coded data, not to marker payload data. Note however that entropy-coded data has a few markers of its own; specifically the Reset markers (0xD0 through 0xD7), which are used to isolate independent chunks of entropy-coded data to allow parallel decoding, and encoders are free to insert these Reset markers at regular intervals (although not all encoders do this).```\n ### Output: {examples['context'][i]}"
-        output_texts.append(text)
-
-    return output_texts
-
-
-# Load dataset (you can process it here)
-dataset = load_dataset(
-    "csv", data_files="../dataset/cleaneddata/jpg_base64.csv", split="train"
-)
-
-################################################################################
-# QLoRA parameters
-################################################################################
-
-# Number of training epochs
-num_train_epochs = 20
-
-# LoRA attention dimension
-lora_r = 64
-
-# Alpha parameter for LoRA scaling
-lora_alpha = 16
-
-# Dropout probability for LoRA layers
-lora_dropout = 0.1
-
-################################################################################
-# bitsandbytes parameters
-################################################################################
-
-# Activate 4-bit precision base model loading
-use_4bit = True
-
-# Compute dtype for 4-bit base models
-bnb_4bit_compute_dtype = "float16"
-
-# Quantization type (fp4 or nf4)
-bnb_4bit_quant_type = "nf4"
-
-# Activate nested quantization for 4-bit base models (double quantization)
-use_nested_quant = False
-
-################################################################################
-# TrainingArguments parameters
-################################################################################
-
-# Output directory where the model predictions and checkpoints will be stored
-output_dir = "./results"
-
-# Enable fp16/bf16 training (set bf16 to True with an A100)
-fp16 = True
-bf16 = False
-
-# Batch size per GPU for training
-per_device_train_batch_size = 38
-
-# Load the entire model on the GPU
-device_map = "auto"  # {"": Accelerator().local_process_index}
-
-# Batch size per GPU for evaluation
-per_device_eval_batch_size = 4
-
-# Number of update steps to accumulate the gradients for
-gradient_accumulation_steps = 1
-
-# Enable gradient checkpointing
-gradient_checkpointing = True
-
-# Maximum gradient normal (gradient clipping)
-max_grad_norm = 0.3
-
-# Initial learning rate (AdamW optimizer)
-learning_rate = 2e-4
-
-# Weight decay to apply to all layers except bias/LayerNorm weights
-weight_decay = 0.001
-
-# Optimizer to use
-optim = "paged_adamw_32bit"
-
-# Learning rate schedule
-lr_scheduler_type = "cosine"
-
-# Number of training steps (overrides num_train_epochs)
-max_steps = -1
-
-# Ratio of steps for a linear warmup (from 0 to learning rate)
-warmup_ratio = 0.03
-
-# Group sequences into batches with same length
-# Saves memory and speeds up training considerably
-group_by_length = True
-
-# Save checkpoint every X updates steps
-save_steps = 0
-
-# Log every X updates steps
-logging_steps = 25
-
-################################################################################
-# SFT parameters
-################################################################################
-
-# Maximum sequence length to use
-max_seq_length = None
-
-# Pack multiple short examples in the same input sequence to increase efficiency
-packing = False
+@dataclass
+class ScriptArguments:
+    model_name: Optional[str] = field(
+        default="meta-llama/Llama-2-7b-chat-hf", metadata={"help": "the model name"}
+    )
+    dataset_name: Optional[str] = field(
+        default="lvwerra/stack-exchange-paired", metadata={"help": "the dataset name"}
+    )
+    subset: Optional[str] = field(
+        default="data/finetune", metadata={"help": "the subset to use"}
+    )
+    split: Optional[str] = field(default="train", metadata={"help": "the split to use"})
+    size_valid_set: Optional[int] = field(
+        default=4000, metadata={"help": "the size of the validation set"}
+    )
+    streaming: Optional[bool] = field(
+        default=True, metadata={"help": "whether to stream the dataset"}
+    )
+    shuffle_buffer: Optional[int] = field(
+        default=5000, metadata={"help": "the shuffle buffer size"}
+    )
+    seq_length: Optional[int] = field(
+        default=64, metadata={"help": "the sequence length"}
+    )
+    num_workers: Optional[int] = field(
+        default=4, metadata={"help": "the number of workers"}
+    )
+    packing: Optional[bool] = field(
+        default=True, metadata={"help": "whether to use packing for SFTTrainer"}
+    )
+    # LoraConfig
+    lora_alpha: Optional[float] = field(
+        default=16, metadata={"help": "the lora alpha parameter"}
+    )
+    lora_dropout: Optional[float] = field(
+        default=0.05, metadata={"help": "the lora dropout parameter"}
+    )
+    lora_r: Optional[int] = field(default=8, metadata={"help": "the lora r parameter"})
 
 
-# Load tokenizer and model with QLoRA configuration
-compute_dtype = getattr(torch, bnb_4bit_compute_dtype)
-
-bnb_config = BitsAndBytesConfig(
-    load_in_4bit=use_4bit,
-    bnb_4bit_quant_type=bnb_4bit_quant_type,
-    bnb_4bit_compute_dtype=compute_dtype,
-    bnb_4bit_use_double_quant=use_nested_quant,
-)
-# Load LoRA configuration
+parser = HfArgumentParser((ScriptArguments, TrainingArguments))
+script_args, training_args = parser.parse_args_into_dataclasses()
 peft_config = LoraConfig(
-    lora_alpha=lora_alpha,
-    lora_dropout=lora_dropout,
-    r=lora_r,
+    r=script_args.lora_r,
+    lora_alpha=script_args.lora_alpha,
+    lora_dropout=script_args.lora_dropout,
+    target_modules=["q_proj", "v_proj"],
     bias="none",
     task_type="CAUSAL_LM",
 )
-# Load base model
-model = AutoModelForCausalLM.from_pretrained(
-    model_name,
-    quantization_config=bnb_config,
-    load_in_8bit=True,
-    device_map=device_map,
-)
-# Whether or not the model should use the past last key/values attentions (if applicable to the model) to speed up decoding.
-model.config.use_cache = False
-model.config.pretraining_tp = 1
 
-# Load LLaMA tokenizer
-tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+if training_args.group_by_length and script_args.packing:
+    raise ValueError("Cannot use both packing and group by length")
+
+# `gradient_checkpointing` was True by default until `1f3314`, but it's actually not used.
+# `gradient_checkpointing=True` will cause `Variable._execution_engine.run_backward`.
+if training_args.gradient_checkpointing:
+    raise ValueError("gradient_checkpointing not supported")
+
+
+def chars_token_ratio(dataset, tokenizer, nb_examples=400):
+    """
+    Estimate the average number of characters per token in the dataset.
+    """
+    total_characters, total_tokens = 0, 0
+    for _, example in tqdm(zip(range(nb_examples), iter(dataset)), total=nb_examples):
+        text = prepare_sample_text(example)
+        total_characters += len(text)
+        if tokenizer.is_fast:
+            total_tokens += len(tokenizer(text).tokens())
+        else:
+            total_tokens += len(tokenizer.tokenize(text))
+
+    return total_characters / total_tokens
+
+
+def print_trainable_parameters(model):
+    """
+    Prints the number of trainable parameters in the model.
+    """
+    trainable_params = 0
+    all_param = 0
+    for _, param in model.named_parameters():
+        all_param += param.numel()
+        if param.requires_grad:
+            trainable_params += param.numel()
+    print(
+        f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}"
+    )
+
+
+def prepare_sample_text(example):
+    """Prepare the text from a sample of the dataset."""
+    text = f"Question: {example['question']}\n\nAnswer: {example['response_j']}"
+    return text
+
+
+def create_datasets(tokenizer, args):
+    dataset = load_dataset(
+        args.dataset_name,
+        data_dir=args.subset,
+        split=args.split,
+        use_auth_token=True,
+        num_proc=args.num_workers if not args.streaming else None,
+        streaming=args.streaming,
+    )
+    if args.streaming:
+        print("Loading the dataset in streaming mode")
+        valid_data = dataset.take(args.size_valid_set)
+        train_data = dataset.skip(args.size_valid_set)
+        train_data = train_data.shuffle(buffer_size=args.shuffle_buffer, seed=None)
+    else:
+        dataset = dataset.train_test_split(test_size=0.005, seed=None)
+        train_data = dataset["train"]
+        valid_data = dataset["test"]
+        print(
+            f"Size of the train set: {len(train_data)}. Size of the validation set: {len(valid_data)}"
+        )
+
+    chars_per_token = chars_token_ratio(train_data, tokenizer)
+    print(f"The character to token ratio of the dataset is: {chars_per_token:.2f}")
+
+    train_dataset = ConstantLengthDataset(
+        tokenizer,
+        train_data,
+        formatting_func=prepare_sample_text,
+        infinite=True,
+        seq_length=args.seq_length,
+        chars_per_token=chars_per_token,
+    )
+    valid_dataset = ConstantLengthDataset(
+        tokenizer,
+        valid_data,
+        formatting_func=prepare_sample_text,
+        infinite=False,
+        seq_length=args.seq_length,
+        chars_per_token=chars_per_token,
+    )
+    return train_dataset, valid_dataset
+
+
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_compute_dtype=torch.bfloat16,
+)
+
+base_model = AutoModelForCausalLM.from_pretrained(
+    script_args.model_name,
+    quantization_config=bnb_config,
+    device_map={"": Accelerator().local_process_index},
+    trust_remote_code=True,
+    use_auth_token=True,
+)
+base_model.config.use_cache = False
+
+
+tokenizer = AutoTokenizer.from_pretrained(
+    script_args.model_name, trust_remote_code=True
+)
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.padding_side = "right"  # Fix weird overflow issue with fp16 training
 
-# Set training parameters
-training_arguments = TrainingArguments(
-    output_dir=output_dir,
-    num_train_epochs=num_train_epochs,
-    per_device_train_batch_size=per_device_train_batch_size,
-    gradient_accumulation_steps=gradient_accumulation_steps,
-    optim=optim,
-    save_steps=save_steps,
-    logging_steps=logging_steps,
-    learning_rate=learning_rate,
-    weight_decay=weight_decay,
-    fp16=fp16,
-    bf16=bf16,
-    max_grad_norm=max_grad_norm,
-    max_steps=max_steps,
-    warmup_ratio=warmup_ratio,
-    group_by_length=group_by_length,
-    lr_scheduler_type=lr_scheduler_type,
-    report_to="tensorboard",
-    ddp_find_unused_parameters=False,
-)
+train_dataset, eval_dataset = create_datasets(tokenizer, script_args)
 
-# accelerator = Accelerator()
-# model, tokenizer, dataset = accelerator.prepare(model, tokenizer, dataset)
-# Set supervised fine-tuning parameters
 trainer = SFTTrainer(
-    model=model,
-    train_dataset=dataset,
-    formatting_func=formatting_prompts_func,
+    model=base_model,
+    train_dataset=train_dataset,
+    eval_dataset=eval_dataset,
     peft_config=peft_config,
-    max_seq_length=max_seq_length,
+    packing=script_args.packing,
+    max_seq_length=None,
     tokenizer=tokenizer,
-    args=training_arguments,
+    args=training_args,
 )
-
-# Train model
 trainer.train()
+trainer.save_model(training_args.output_dir)
 
-# Save trained model
-trainer.save_model(new_model)
+output_dir = os.path.join(training_args.output_dir, "final_checkpoint")
+trainer.model.save_pretrained(output_dir)
+
+# Free memory for merging weights
+del base_model
+
+torch.cuda.empty_cache()
+
+model = AutoPeftModelForCausalLM.from_pretrained(
+    output_dir, device_map="auto", torch_dtype=torch.bfloat16
+)
+model = model.merge_and_unload()
+
+output_merged_dir = os.path.join(training_args.output_dir, "final_merged_checkpoint")
+model.save_pretrained(output_merged_dir, safe_serialization=True)

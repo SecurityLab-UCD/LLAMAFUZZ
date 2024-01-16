@@ -7,7 +7,7 @@ from accelerate import Accelerator
 from datasets import load_dataset
 from peft import LoraConfig
 from tqdm import tqdm
-from transformers import AutoTokenizer, pipeline, HfArgumentParser, BitsAndBytesConfig
+from transformers import AutoTokenizer, BitsAndBytesConfig
 
 from trl import (
     AutoModelForCausalLMWithValueHead,
@@ -16,8 +16,6 @@ from trl import (
     set_seed,
 )
 from trl.core import LengthSampler
-from PIL import Image
-
 import threading
 import re
 import sysv_ipc
@@ -32,7 +30,7 @@ TYPE_EMPTY_SEED = 2
 TYPE_REWARD = 3
 TYPE_REQUEST = 4
 
-output_dir = "./result"
+output_dir = "./ppo_checkpoint"
 message_queue = []
 seed_id_map = {}
 id_rwd_map = {}
@@ -64,7 +62,6 @@ def mq_thread():
 
 
 def reward_thread():
-    global id_rwd_map
     try:
         # Create a new message queue or get an existing one
         rw_mq = sysv_ipc.MessageQueue(4321, sysv_ipc.IPC_CREAT)
@@ -72,12 +69,31 @@ def reward_thread():
         print(f"Message queue with key {4321} already exists.")
         return
     while True:
-        # receive msg
         rw_msg, rw_mtype = rw_mq.receive(type=TYPE_REWARD)
         # receive reward msg(uid + reward)
         decoded_msg = struct.unpack("ii", rw_msg)
-        print("RECEIVE seedid", decoded_msg[0], " REWARDS", decoded_msg[1])
-        id_rwd_map[decoded_msg[0]] = float(decoded_msg[1])
+        global id_rwd_map
+        if decoded_msg[0] in id_rwd_map:
+            # reward should be in range [-3,3]
+            if decoded_msg[1] > 4000:
+                id_rwd_map[decoded_msg[0]] = 3.0
+            else:
+                id_rwd_map[decoded_msg[0]] = float(decoded_msg[1]) / 1000.0 - 3.0
+        else:
+            rw_mq.send(
+                struct.pack("I", decoded_msg[0]) + struct.pack("I", decoded_msg[1]),
+                True,
+                type=TYPE_REWARD,
+            )
+
+
+def calculate_reward(seed_batch):
+    global seed_id_map, id_rwd_map
+    start_time = time.time()
+    while time.time() - start_time < 100:
+        if id_rwd_map[seed_id_map[seed_batch[0]]] != 0.0:
+            return [torch.tensor(id_rwd_map[seed_id_map[i]]) for i in seed_batch]
+    return [torch.tensor(id_rwd_map[seed_id_map[i]]) for i in seed_batch]
 
 
 def hex_string_to_hex(hex_string):
@@ -98,17 +114,16 @@ def hex_string_to_hex(hex_string):
             result.append(section)
         elif len(section) == 2:
             result.append(section)
-
-    # Join the sections back together with spaces
     return "".join(result)
 
 
 @dataclass
 class ScriptArguments:
+    dataset_path: str = "../dataset/cleaneddata/jpg_question.csv"
     ppo_config: PPOConfig = field(
         default_factory=lambda: PPOConfig(
             steps=10,
-            model_name="llama-2-7b-structured-jpg-hex-40",
+            model_name="llama-2-7b-structured-jpg-hex-40",  # llama-2-7b-structured-jpg-hex-40
             query_dataset=None,
             reward_model=None,
             learning_rate=1e-5,
@@ -119,13 +134,13 @@ class ScriptArguments:
             early_stopping=False,
             target_kl=0.1,
             kl_penalty="kl",
-            ppo_epochs=4,
+            ppo_epochs=6,
             seed=0,
             init_kl_coef=0.2,  # Initial KL coefficient.
             adap_kl_ctrl=True,  # Whether to adapt KL control.
-            use_score_scaling=False,
-            use_score_norm=False,
-            score_clip=None,
+            use_score_scaling=True,
+            use_score_norm=True,
+            score_clip=0.2,
             optimize_cuda_cache=True,
         )
     )
@@ -156,7 +171,9 @@ args = tyro.cli(ScriptArguments)
 
 
 # Build the dataset.
-def build_dataset(tokenizer, input_min_text_length=2, input_max_text_length=16):
+def build_dataset(
+    tokenizer, dataset_path, input_min_text_length=2, input_max_text_length=32
+):
     """
     Build dataset for training. This builds the dataset from `load_dataset`, one should
     customize this function to train the model on its own dataset.
@@ -168,7 +185,7 @@ def build_dataset(tokenizer, input_min_text_length=2, input_max_text_length=16):
     # load imdb with datasets
     ds = load_dataset(
         "csv",
-        data_files="../dataset/cleaneddata/jpg_question.csv",
+        data_files=dataset_path,
         split="train",
         delimiter="/n",
     )
@@ -197,7 +214,7 @@ def main():
     # Some tokenizers like GPT-2's don't have a padding token by default, so we set one here.
     tokenizer.pad_token_id = tokenizer.eos_token_id
     # We retrieve the dataloader by calling the `build_dataset` function.
-    dataset = build_dataset(tokenizer)
+    dataset = build_dataset(tokenizer, dataset_path=args.dataset_path)
 
     # set seed before initializing value head for deterministic eval
     set_seed(args.ppo_config.seed)
@@ -206,7 +223,8 @@ def main():
     peft_config = args.peft_config
     ref_model = None
     # Copy the model to each device
-    device_map = {"": Accelerator().local_process_index}
+    current_device = Accelerator().local_process_index
+    device_map = {"": current_device}
 
     model = AutoModelForCausalLMWithValueHead.from_pretrained(
         "./" + args.ppo_config.model_name,
@@ -237,12 +255,24 @@ def main():
         dataset=dataset,
         data_collator=collator,
     )
-    # Define the arguments to pass to the `generate` function.
+    # beam search
+    # generation_kwargs = {"num_beams": 5, "early_stopping": True}
+    # Sampling generation strategy https://huggingface.co/blog/zh/how-to-generate
+    # generation_kwargs = {
+    #     "do_sample": True,
+    #     "min_length": -1,
+    #     "top_k": 0.0,
+    #     "pad_token_id": tokenizer.eos_token_id,
+    #     "temperature": 0.5,
+    #     "max_new_tokens": 128,
+    # }
+    # Top-p topk generation
     generation_kwargs = {
-        "top_k": 0.0,
-        "top_p": 1.0,
         "do_sample": True,
-        "pad_token_id": tokenizer.pad_token_id,
+        "min_length": -1,
+        "top_p": 0.9,
+        "top_k": 1096,
+        "pad_token_id": tokenizer.eos_token_id,
     }
     # flash attention 1
     torch.backends.cuda.sdp_kernel(
@@ -252,6 +282,7 @@ def main():
     for epoch, batch in tqdm(enumerate(ppo_trainer.dataloader)):
         query_tensors = batch["input_ids"]
         ppo_trainer.accelerator.unwrap_model(model).gradient_checkpointing_disable()
+        # Todo: the query tensor are unstable no idea why
 
         response_tensors = ppo_trainer.generate(
             query_tensors,
@@ -259,43 +290,37 @@ def main():
             length_sampler=LengthSampler(2, 1028),
             **generation_kwargs,
         )
-        print("end generate")
 
         ppo_trainer.accelerator.unwrap_model(model).gradient_checkpointing_enable()
 
         batch["response"] = tokenizer.batch_decode(
             response_tensors, skip_special_tokens=True
         )
-        # batch["ref_response"] = tokenizer.batch_decode(ref_response_tensors)
 
         # Compute sentiment score
         global uid, seed_id_map, id_rwd_map, message_queue
         seed_batch = []
-        # i = 1
         for r in batch["response"]:
             # set default rewards to 0
             seed = hex_string_to_hex(r)
             shared_resource_lock.acquire()
-            # i += 1
-            print("SEED ", uid + os.getpid(), " :")
             seed_id_map[seed] = uid + os.getpid()
-            id_rwd_map[uid + os.getpid()] = 0.0
+            id_rwd_map[uid + os.getpid()] = float(0.0)
             shared_resource_lock.release()
             message_queue.append(seed)
             seed_batch.append(seed)
+            print(seed)
         uid += 8
         # iterate msgs record reward
-        # need wait for 0.1s for response?
-        time.sleep(1.1)
-        rewards = [torch.tensor(id_rwd_map[seed_id_map[i]]) for i in seed_batch]
-        print(rewards)
+        rewards = calculate_reward(seed_batch)
+        print("Rewards:::", rewards)
 
         # Run PPO step
         stats = ppo_trainer.step(query_tensors, response_tensors, rewards)
         ppo_trainer.log_stats(stats, batch, rewards)
         print("Step " + str(epoch) + " finished")
         torch.cuda.empty_cache()
-
+    ppo_trainer.save_model("ppo-llama2-jpg")
     ppo_trainer.save_pretrained(output_dir)
 
 
@@ -304,7 +329,8 @@ if __name__ == "__main__":
         target=mq_thread,
         args=(),
     )
-    t2 = threading.Thread(target=reward_thread, args=())
     t.start()
+    # if accelerator.is_main_process:
+    t2 = threading.Thread(target=reward_thread, args=())
     t2.start()
     main()

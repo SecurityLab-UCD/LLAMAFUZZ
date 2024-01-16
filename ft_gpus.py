@@ -47,10 +47,10 @@ def formatting_prompts_func(examples):
 @dataclass
 class ScriptArguments:
     model_name: Optional[str] = field(
-        default="meta-llama/Llama-2-7b-chat-hf", metadata={"help": "the model name"}
+        default="meta-llama/Llama-2-7b-hf", metadata={"help": "the model name"}
     )
     num_train_epochs: Optional[int] = field(
-        default=200, metadata={"help": "Number of training epochs"}
+        default=70, metadata={"help": "Number of training epochs"}
     )
     per_device_train_batch_size: Optional[int] = field(
         default=1, metadata={"help": "the per device train batch size"}
@@ -212,7 +212,7 @@ base_model = AutoModelForCausalLM.from_pretrained(
 base_model.config.use_cache = False
 
 tokenizer = AutoTokenizer.from_pretrained(
-    "./" + based_model_name, trust_remote_code=True, padding=True
+    script_args.model_name, trust_remote_code=True, padding=True
 )
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.padding_side = "right"  # Fix weird overflow issue with fp16 training
@@ -230,7 +230,7 @@ trainer = SFTTrainer(
     tokenizer=tokenizer,
     args=training_args,
 )
-trainer.train(resume_from_checkpoint=script_args.output_dir + "/final_checkpoint")
+trainer.train()  # resume_from_checkpoint=script_args.output_dir + "/final_checkpoint"
 
 output_dir = os.path.join(script_args.output_dir, "final_checkpoint")
 trainer.save_model(new_model)
