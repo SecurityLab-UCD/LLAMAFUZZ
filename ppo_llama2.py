@@ -30,6 +30,7 @@ TYPE_EMPTY_SEED = 2
 TYPE_REWARD = 3
 TYPE_REQUEST = 4
 
+access_token = "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"
 output_dir = "./ppo_checkpoint"
 message_queue = []
 seed_id_map = {}
@@ -209,7 +210,7 @@ def collator(data):
 def main():
     # Init the tokenizer and dataset
     tokenizer = AutoTokenizer.from_pretrained(
-        "./" + args.ppo_config.model_name, use_fast=True
+        "./" + args.ppo_config.model_name, use_fast=True, token=access_token
     )
     # Some tokenizers like GPT-2's don't have a padding token by default, so we set one here.
     tokenizer.pad_token_id = tokenizer.eos_token_id
@@ -232,6 +233,7 @@ def main():
         device_map=device_map,
         peft_config=peft_config,
         load_in_4bit=True,
+        token=access_token,
         torch_dtype=torch.bfloat16,
         quantization_config=BitsAndBytesConfig(
             load_in_4bit=True,
