@@ -1,0 +1,9 @@
+torch==2.0.1+cu117
+datasets==2.14.5
+tqdm==4.65.0
+peft==0.6.2
+accelerate==0.24.1
+transformers==4.35.0
+trl==0.7.2
+tyro
+typing
