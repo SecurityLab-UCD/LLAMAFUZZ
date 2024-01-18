@@ -31,7 +31,8 @@ TYPE_REWARD = 3
 TYPE_REQUEST = 4
 
 access_token = "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"
-output_dir = "./ppo_checkpoint"
+cur_path = os.path.join(os.getcwd(), "structureLLM")
+output_dir = os.path.join(cur_path, "ppo_checkpoint")
 message_queue = []
 seed_id_map = {}
 id_rwd_map = {}
@@ -120,7 +121,7 @@ def hex_string_to_hex(hex_string):
 
 @dataclass
 class ScriptArguments:
-    dataset_path: str = "./prompts/jpg_question.csv"
+    dataset_path: str = os.path.join(cur_path, "prompts/jpg_question.csv")
     ppo_config: PPOConfig = field(
         default_factory=lambda: PPOConfig(
             steps=10,
@@ -210,7 +211,9 @@ def collator(data):
 def main():
     # Init the tokenizer and dataset
     tokenizer = AutoTokenizer.from_pretrained(
-        "./" + args.ppo_config.model_name, use_fast=True, token=access_token
+        os.path.join(cur_path, args.ppo_config.model_name),
+        use_fast=True,
+        token=access_token,
     )
     # Some tokenizers like GPT-2's don't have a padding token by default, so we set one here.
     tokenizer.pad_token_id = tokenizer.eos_token_id
@@ -228,7 +231,7 @@ def main():
     device_map = {"": current_device}
 
     model = AutoModelForCausalLMWithValueHead.from_pretrained(
-        "./" + args.ppo_config.model_name,
+        os.path.join(cur_path, args.ppo_config.model_name),
         trust_remote_code=args.trust_remote_code,
         device_map=device_map,
         peft_config=peft_config,
