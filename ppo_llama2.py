@@ -288,7 +288,7 @@ def main():
         query_tensors = batch["input_ids"]
         ppo_trainer.accelerator.unwrap_model(model).gradient_checkpointing_disable()
         # Todo: the query tensor are unstable no idea why
-
+        print("Step " + str(epoch) + " start")
         response_tensors = ppo_trainer.generate(
             query_tensors,
             return_prompt=True,
@@ -314,7 +314,7 @@ def main():
             shared_resource_lock.release()
             message_queue.append(seed)
             seed_batch.append(seed)
-            print(seed)
+            print("seed:::",seed)
         uid += 8
         # iterate msgs record reward
         rewards = calculate_reward(seed_batch)
