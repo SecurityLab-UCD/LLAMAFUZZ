@@ -286,9 +286,10 @@ def main():
 
     for epoch, batch in tqdm(enumerate(ppo_trainer.dataloader)):
         query_tensors = batch["input_ids"]
+        print("Step " + str(epoch) + " start")
         ppo_trainer.accelerator.unwrap_model(model).gradient_checkpointing_disable()
         # Todo: the query tensor are unstable no idea why
-        print("Step " + str(epoch) + " start")
+        print("Step " + str(epoch) + " generate")
         response_tensors = ppo_trainer.generate(
             query_tensors,
             return_prompt=True,
