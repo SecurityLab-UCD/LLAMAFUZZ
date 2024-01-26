@@ -291,7 +291,7 @@ def main():
         response_tensors = ppo_trainer.generate(
             query_tensors,
             return_prompt=True,
-            length_sampler=LengthSampler(2, 1028),
+            length_sampler=LengthSampler(2, 512),
             **generation_kwargs,
         )
 
