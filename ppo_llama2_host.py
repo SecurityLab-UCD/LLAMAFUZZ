@@ -249,6 +249,7 @@ def main():
     # Whether or not the model should use the past last key/values attentions (if applicable to the model) to speed up decoding.
     model.config.use_cache = False
     model.config.pretraining_tp = 1
+    model.gradient_checkpointing_enable()
 
     # We then build the PPOTrainer, passing the model, the reference model, the tokenizer
     ppo_trainer = PPOTrainer(
@@ -286,6 +287,7 @@ def main():
     for epoch, batch in tqdm(enumerate(ppo_trainer.dataloader)):
         query_tensors = batch["input_ids"]
         print("Step " + str(epoch) + " start")
+        ppo_trainer.accelerator.unwrap_model(model).gradient_checkpointing_disable()
         # Todo: the query tensor are unstable no idea why
         print("Step " + str(epoch) + " generate")
         response_tensors = ppo_trainer.generate(
@@ -295,6 +297,7 @@ def main():
             **generation_kwargs,
         )
 
+        ppo_trainer.accelerator.unwrap_model(model).gradient_checkpointing_enable()
 
         batch["response"] = tokenizer.batch_decode(
             response_tensors, skip_special_tokens=True
@@ -320,7 +323,7 @@ def main():
 
         # Run PPO step
         stats = ppo_trainer.step(query_tensors, response_tensors, rewards)
-        ppo_trainer.log_stats(stats, batch, rewards)
+        # ppo_trainer.log_stats(stats, batch, rewards)
         print("Step " + str(epoch) + " finished")
         torch.cuda.empty_cache()
     ppo_trainer.save_model("ppo-llama2-jpg")
