@@ -275,7 +275,7 @@ def main():
         "do_sample": True,
         "min_length": -1,
         "top_p": 0.9,
-        "top_k": 1096,
+        "top_k": 512,
         "pad_token_id": tokenizer.eos_token_id,
     }
     # flash attention 1
