@@ -100,7 +100,7 @@ def calculate_reward(seed_batch):
 
 def hex_string_to_hex(hex_string):
     hex_string = hex_string.replace(
-        "Generate a JPG example in hex format. Make sure the example is complete and valid. Only return the solution, no other words.",
+        "Generate a PNG example in hex format. Make sure the example is complete and valid. Only return the solution, no other words.",
         " ",
     )
     hex_string = re.sub(r"[^a-zA-Z0-9\s]", " ", hex_string)
@@ -125,7 +125,7 @@ class ScriptArguments:
     ppo_config: PPOConfig = field(
         default_factory=lambda: PPOConfig(
             steps=10,
-            model_name="llama-2-7b-structured-jpg-png-hex",  # llama-2-7b-structured-jpg-hex-40
+            model_name="llama-2-7b-structured-jpg-png-hex-previous",  # llama-2-7b-structured-jpg-hex-40
             query_dataset=None,
             reward_model=None,
             learning_rate=1e-5,
@@ -216,7 +216,9 @@ def main():
         token=access_token,
     )
     # Some tokenizers like GPT-2's don't have a padding token by default, so we set one here.
-    tokenizer.pad_token_id = tokenizer.eos_token_id
+    # tokenizer.pad_token_id = tokenizer.eos_token_id
+    tokenizer.pad_token = tokenizer.bos_token
+    # tokenizer.padding_side = "left"
     # We retrieve the dataloader by calling the `build_dataset` function.
     dataset = build_dataset(tokenizer, dataset_path=args.dataset_path)
 
@@ -246,6 +248,7 @@ def main():
         ),
         # use_flash_attention_2=True, Unable to use this feature in current GPU
     )
+    model.bfloat16()
     # Whether or not the model should use the past last key/values attentions (if applicable to the model) to speed up decoding.
     model.config.use_cache = False
     model.config.pretraining_tp = 1
@@ -276,7 +279,7 @@ def main():
         "min_length": -1,
         "top_p": 0.9,
         "top_k": 512,
-        "pad_token_id": tokenizer.eos_token_id,
+        "pad_token_id": tokenizer.bos_token_id,
     }
     # flash attention 1
     torch.backends.cuda.sdp_kernel(
@@ -285,9 +288,6 @@ def main():
 
     for epoch, batch in tqdm(enumerate(ppo_trainer.dataloader)):
         query_tensors = batch["input_ids"]
-        print("Step " + str(epoch) + " start")
-        # Todo: the query tensor are unstable no idea why
-        print("Step " + str(epoch) + " generate")
         response_tensors = ppo_trainer.generate(
             query_tensors,
             return_prompt=True,
