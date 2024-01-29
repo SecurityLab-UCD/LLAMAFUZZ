@@ -121,11 +121,11 @@ def hex_string_to_hex(hex_string):
 
 @dataclass
 class ScriptArguments:
-    dataset_path: str = os.path.join(cur_path, "prompts/jpg_question.csv")
+    dataset_path: str = os.path.join(cur_path, "prompts/png_question.csv")
     ppo_config: PPOConfig = field(
         default_factory=lambda: PPOConfig(
             steps=10,
-            model_name="llama-2-7b-structured-jpg-hex-40",  # llama-2-7b-structured-jpg-hex-40
+            model_name="llama-2-7b-structured-jpg-png-hex",  # llama-2-7b-structured-jpg-hex-40
             query_dataset=None,
             reward_model=None,
             learning_rate=1e-5,
