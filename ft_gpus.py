@@ -50,7 +50,7 @@ class ScriptArguments:
         default="meta-llama/Llama-2-7b-hf", metadata={"help": "the model name"}
     )
     num_train_epochs: Optional[int] = field(
-        default=70, metadata={"help": "Number of training epochs"}
+        default=100, metadata={"help": "Number of training epochs"}
     )
     per_device_train_batch_size: Optional[int] = field(
         default=1, metadata={"help": "the per device train batch size"}
@@ -95,7 +95,7 @@ class ScriptArguments:
         default="cosine", metadata={"help": "the lr scheduler type"}
     )
     num_warmup_steps: Optional[int] = field(
-        default=100, metadata={"help": "the number of warmup steps"}
+        default=30, metadata={"help": "the number of warmup steps"}
     )
     weight_decay: Optional[float] = field(
         default=0.001, metadata={"help": "the weight decay"}
