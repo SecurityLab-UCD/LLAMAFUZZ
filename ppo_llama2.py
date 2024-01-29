@@ -248,7 +248,6 @@ def main():
         ),
         # use_flash_attention_2=True, Unable to use this feature in current GPU
     )
-    model.bfloat16()
     # Whether or not the model should use the past last key/values attentions (if applicable to the model) to speed up decoding.
     model.config.use_cache = False
     model.config.pretraining_tp = 1
