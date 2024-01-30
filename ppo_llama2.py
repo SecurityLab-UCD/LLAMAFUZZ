@@ -99,8 +99,6 @@ def calculate_reward(seed_batch):
 
 
 def hex_string_to_hex(hex_string):
-    print('raw string:')
-    print(hex_string)
     hex_string = hex_string.replace(
         "Generate a seed for fuzzing libjpg in hex format. Make sure the example is complete and valid. Only return the solution, no other words.",
         " ",
