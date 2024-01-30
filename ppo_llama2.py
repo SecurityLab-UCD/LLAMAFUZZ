@@ -99,8 +99,10 @@ def calculate_reward(seed_batch):
 
 
 def hex_string_to_hex(hex_string):
+    print('raw string:')
+    print(hex_string)
     hex_string = hex_string.replace(
-        "Generate a PNG example in hex format. Make sure the example is complete and valid. Only return the solution, no other words.",
+        "Generate a seed for fuzzing libjpg in hex format. Make sure the example is complete and valid. Only return the solution, no other words.",
         " ",
     )
     hex_string = re.sub(r"[^a-zA-Z0-9\s]", " ", hex_string)
@@ -121,11 +123,11 @@ def hex_string_to_hex(hex_string):
 
 @dataclass
 class ScriptArguments:
-    dataset_path: str = os.path.join(cur_path, "prompts/png_question.csv")
+    dataset_path: str = os.path.join(cur_path, "prompts/jpg_question.csv")
     ppo_config: PPOConfig = field(
         default_factory=lambda: PPOConfig(
             steps=10,
-            model_name="llama-2-7b-structured-jpg-png-hex-previous",  # llama-2-7b-structured-jpg-hex-40
+            model_name="llama-2-7b-structured-libjpg-hex",  # llama-2-7b-structured-jpg-hex-40
             query_dataset=None,
             reward_model=None,
             learning_rate=1e-5,
