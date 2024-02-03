@@ -18,45 +18,38 @@ from transformers import (
 from trl import SFTTrainer
 from trl.trainer import ConstantLengthDataset
 
-based_model_name = "llama-2-7b-structured-jpg-hex-40"
-new_model = "llama-2-7b-structured-jpg-png-hex"
+new_model = "llama-2-7b-structured-libjpg-hex"
+dataset_path = "./prompts/fine-tune-libjpeg-mutate.csv"
 
 device = Accelerator().local_process_index
 
-
-def formatting_prompts_func_with_text(examples):
-    output_texts = []
-
-    for i in range(len(examples["context"])):
-        text = f"### Input: ```Generate a different PNG example in hex format. Make sure the example is complete and valid. Only return the solution, no other words. Here is the text description you can refer The Examples Structure of a very simple PNG file 89 50 4E 47 0D 0A 1A 0A```\n```Contents of a minimal PNG file representing one red pixel Hex As characters 89 50 4E 47 0D 0A 1A 0A 00 00 00 0D 49 48 44 52```\n```00 00 00 01 00 00 00 01 08 02 00 00 00 90 77 53```\n```DE 00 00 00 0C 49 44 41 54 08 D7 63 F8 CF C0 00```\n```00 03 01 01 00 18 DD 8D B0 00 00 00 00 49 45 4E```\n```44 AE 42 60 82```\n```IHDR Chunk Offset into chunk	Hex Value	Decimal Value	Text	Meaning```\n```0x0D	13		IHDR chunk has 13 bytes of content```\n```0x49484452		IHDR	Identifies a Header chunk```\n```0x01	1		Image is 1 pixel wide```\n```0x01	1		Image is 1 pixel high```\n```0x08	8		8 bits per pixel (per channel)```\n```0x02	2		Color type 2 (RGB/truecolor)```\n```0x00	0		Compression method 0 (only accepted value)```0x00	0		Filter method 0 (only accepted value)```\n```0x00	0		Not interlaced```\n```0x907753DE			CRC of chunk's type and content (but not length)```\n```IDAT Chunk Offset into chunk	Hex Value	Meaning```\n```0x0C	IDAT chunk has 12 bytes of content```\n```0x49444154	Identifies a Data chunk```\n```0x08	DEFLATE compression method using a 256-byte window[44]```\n```0xD7	ZLIB FCHECK value, no dictionary used, maximum compression algorithm```\n```0x63F8CFC00000	A compressed DEFLATE block using the static Huffman code that decodes to 0x00 0xFF 0x00 0x00```\n```0x03010100	The ZLIB check value: the Adler32 checksum of the uncompressed data```\n```0x18DD8DB0	CRC of chunk's type and content (but not length)```\n ### Output: {examples['context'][i]}"
-        output_texts.append(text)
-
-    return output_texts
-
-
 def formatting_prompts_func(examples):
+    print(examples)
+    formated_prompt = f"### Input: ```Based on below libjpeg seed, mutate a new libjpeg seed. Make sure the example is complete and valid. Only return the solution, no other words. {examples['src']}```\n ### Output: {examples['cur']}"
+    print(formated_prompt)
+    return formated_prompt
     output_texts = []
 
+    # f"### Input: ```Generate a seed for fuzzing libjpg in hex format. Make sure the example is complete and valid. Only return the solution, no other words.```\n ### Output: {examples['context']}"
     for i in range(len(examples["context"])):
         text = f"### Input: ```Generate a different PNG example in hex format. Make sure the example is complete and valid. Only return the solution, no other words.```\n ### Output: {examples['context'][i]}"
         output_texts.append(text)
 
     return output_texts
 
-
 @dataclass
 class ScriptArguments:
     model_name: Optional[str] = field(
-        default="meta-llama/Llama-2-7b-hf", metadata={"help": "the model name"}
+        default="meta-llama/Llama-2-7b-chat-hf", metadata={"help": "the model name"}
     )
     num_train_epochs: Optional[int] = field(
-        default=100, metadata={"help": "Number of training epochs"}
+        default=50, metadata={"help": "Number of training epochs"}
     )
     per_device_train_batch_size: Optional[int] = field(
         default=1, metadata={"help": "the per device train batch size"}
     )
     seq_length: Optional[int] = field(
-        default=1900, metadata={"help": "the sequence length"}
+        default=1250, metadata={"help": "the sequence length"}
     )
     max_steps: Optional[int] = field(
         default=-1,
@@ -123,9 +116,6 @@ peft_config = LoraConfig(
     task_type="CAUSAL_LM",
 )
 
-if script_args.group_by_length and script_args.packing:
-    raise ValueError("Cannot use both packing and group by length")
-
 training_args = TrainingArguments(
     output_dir=script_args.output_dir,
     num_train_epochs=script_args.num_train_epochs,
@@ -146,17 +136,6 @@ training_args = TrainingArguments(
     run_name="sft_llama2",
     ddp_find_unused_parameters=False,
 )
-
-
-def formatting_prompts_func(examples):
-    return f"### Input: ```Generate a different PNG example in hex format. Make sure the example is complete and valid. Only return the solution, no other words.```\n ### Output: {examples['context']}"
-    output_texts = []
-
-    for i in range(len(examples["context"])):
-        text = f"### Input: ```Generate a different PNG example in hex format. Make sure the example is complete and valid. Only return the solution, no other words.```\n ### Output: {examples['context'][i]}"
-        output_texts.append(text)
-
-    return output_texts
 
 
 def chars_token_ratio(dataset, tokenizer, nb_examples=400):
@@ -202,6 +181,18 @@ bnb_config = BitsAndBytesConfig(
     device_map=device,
 )
 
+
+tokenizer = AutoTokenizer.from_pretrained(
+    script_args.model_name, trust_remote_code=True, padding=True
+)
+tokenizer.pad_token = tokenizer.bos_token
+tokenizer.padding_side = "left" # Fix weird overflow issue with fp16 training
+# tokenizer.pad_token = tokenizer.eos_token
+# tokenizer.padding_side = "right"  # Fix weird overflow issue with fp16 training
+
+# Load dataset (you can process it here)
+dataset = create_datset(tokenizer, dataset_path)
+
 base_model = AutoModelForCausalLM.from_pretrained(
     script_args.model_name,
     quantization_config=bnb_config,
@@ -211,14 +202,7 @@ base_model = AutoModelForCausalLM.from_pretrained(
 )
 base_model.config.use_cache = False
 
-tokenizer = AutoTokenizer.from_pretrained(
-    script_args.model_name, trust_remote_code=True, padding=True
-)
-tokenizer.pad_token = tokenizer.eos_token
-tokenizer.padding_side = "right"  # Fix weird overflow issue with fp16 training
 
-# Load dataset (you can process it here)
-dataset = create_datset(tokenizer, "../dataset/cleaneddata/png_hex.csv")
 
 
 trainer = SFTTrainer(
@@ -236,14 +220,14 @@ output_dir = os.path.join(script_args.output_dir, "final_checkpoint")
 trainer.save_model(new_model)
 trainer.model.save_pretrained(output_dir)
 
-# Free memory for merging weights
-del base_model
-torch.cuda.empty_cache()
+# # Free memory for merging weights
+# del base_model
+# torch.cuda.empty_cache()
 
-model = AutoPeftModelForCausalLM.from_pretrained(
-    output_dir, device_map="auto", torch_dtype=torch.bfloat16
-)
-model = model.merge_and_unload()
+# model = AutoPeftModelForCausalLM.from_pretrained(
+#     output_dir, device_map="auto", torch_dtype=torch.bfloat16
+# )
+# model = model.merge_and_unload()
 
-output_merged_dir = os.path.join(script_args.output_dir, "final_merged_checkpoint")
-model.save_pretrained(output_merged_dir, safe_serialization=True)
+# output_merged_dir = os.path.join(script_args.output_dir, "final_merged_checkpoint")
+# model.save_pretrained(output_merged_dir, safe_serialization=True)

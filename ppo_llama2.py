@@ -1,3 +1,4 @@
+# PPO process that receive request from fuzzer then send back the generated seeds to fuzzer
 from dataclasses import dataclass, field
 from typing import Optional
 import os
@@ -276,7 +277,7 @@ def main():
     generation_kwargs = {
         "do_sample": True,
         "min_length": -1,
-        "top_p": 0.9,
+        "top_p": 0.85, # 0.9
         "top_k": 512,
         "pad_token_id": tokenizer.bos_token_id,
     }
