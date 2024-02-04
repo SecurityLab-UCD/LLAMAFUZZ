@@ -170,7 +170,6 @@ def hex_string_to_hex(hex_string):
     Returns:
         String of hex.
     """
-    print(hex_string)
     hex_string = hex_string.replace(
         "### Output:",
         " ",
