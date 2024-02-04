@@ -16,13 +16,11 @@ from trl import (
     PPOTrainer,
     set_seed,
 )
-from trl.core import LengthSampler
 import threading
 import re
 import sysv_ipc
 import time
 import struct
-
 
 tqdm.pandas()
 
@@ -40,93 +38,16 @@ id_rwd_map = {}
 uid = 1
 shared_resource_lock = threading.Lock()
 
-
-def mq_thread():
-    global message_queue, seed_id_map
-    try:
-        mq = sysv_ipc.MessageQueue(1234, sysv_ipc.IPC_CREAT)
-    except sysv_ipc.ExistentialError:
-        print(f"Message queue with key {1234} already exists.")
-        return
-    while True:
-        # only receive request msg
-        msg, mtype = mq.receive(type=TYPE_REQUEST)
-        if not message_queue == []:
-            # send uid + seed
-            seed = message_queue.pop(0)
-            mq.send(
-                struct.pack("I", seed_id_map[seed]) + seed.encode("utf-8"),
-                True,
-                type=TYPE_SEED,
-            )
-        else:
-            # send empty str do default muatation
-            mq.send("", True, type=TYPE_EMPTY_SEED)
-
-
-def reward_thread():
-    try:
-        # Create a new message queue or get an existing one
-        rw_mq = sysv_ipc.MessageQueue(4321, sysv_ipc.IPC_CREAT)
-    except sysv_ipc.ExistentialError:
-        print(f"Message queue with key {4321} already exists.")
-        return
-    while True:
-        rw_msg, rw_mtype = rw_mq.receive(type=TYPE_REWARD)
-        # receive reward msg(uid + reward)
-        decoded_msg = struct.unpack("ii", rw_msg)
-        global id_rwd_map
-        if decoded_msg[0] in id_rwd_map:
-            # reward should be in range [-3,3]
-            if decoded_msg[1] > 4000:
-                id_rwd_map[decoded_msg[0]] = 3.0
-            else:
-                id_rwd_map[decoded_msg[0]] = float(decoded_msg[1]) / 1000.0 - 3.0
-        else:
-            rw_mq.send(
-                struct.pack("I", decoded_msg[0]) + struct.pack("I", decoded_msg[1]),
-                True,
-                type=TYPE_REWARD,
-            )
-
-
-def calculate_reward(seed_batch):
-    global seed_id_map, id_rwd_map
-    start_time = time.time()
-    while time.time() - start_time < 100:
-        if id_rwd_map[seed_id_map[seed_batch[0]]] != 0.0:
-            return [torch.tensor(id_rwd_map[seed_id_map[i]]) for i in seed_batch]
-    return [torch.tensor(id_rwd_map[seed_id_map[i]]) for i in seed_batch]
-
-
-def hex_string_to_hex(hex_string):
-    hex_string = hex_string.replace(
-        "Generate a seed for fuzzing libjpg in hex format. Make sure the example is complete and valid. Only return the solution, no other words.",
-        " ",
-    )
-    hex_string = re.sub(r"[^a-zA-Z0-9\s]", " ", hex_string)
-    hex_values = hex_string.replace("0x", " ")
-
-    sections = hex_values.split()  # Split the string into sections
-
-    # Iterate through the sections and add leading zeros if needed
-    result = []
-    for section in sections:
-        if len(section) == 1:
-            section = "0" + section
-            result.append(section)
-        elif len(section) == 2:
-            result.append(section)
-    return "".join(result)
-
-
 @dataclass
 class ScriptArguments:
+    """
+    Setup experiment config
+    """
     dataset_path: str = os.path.join(cur_path, "prompts/libjpg_mutate_question.csv")
     ppo_config: PPOConfig = field(
         default_factory=lambda: PPOConfig(
             steps=10,
-            model_name="llama-2-7b-structured-libjpg-hex",  # llama-2-7b-structured-jpg-hex-40
+            model_name="llama-2-7b-structured-libjpg-hex-mutator",  # llama-2-7b-structured-jpg-hex-40
             query_dataset=None,
             reward_model=None,
             learning_rate=1e-5,
@@ -172,14 +93,110 @@ class ScriptArguments:
 
 args = tyro.cli(ScriptArguments)
 
+def mq_thread():
+    """
+    Thread to receive request from fuzzer, and send generated seed to fuzzer
+    """
+    global message_queue, seed_id_map
+    try:
+        mq = sysv_ipc.MessageQueue(1234, sysv_ipc.IPC_CREAT)
+    except sysv_ipc.ExistentialError:
+        print(f"Message queue with key {1234} already exists.")
+        return
+    while True:
+        # only receive request msg
+        msg, mtype = mq.receive(type=TYPE_REQUEST)
+        if not message_queue == []:
+            # send uid + seed
+            seed = message_queue.pop(0)
+            mq.send(
+                struct.pack("I", seed_id_map[seed]) + seed.encode("utf-8"),
+                True,
+                type=TYPE_SEED,
+            )
+        else:
+            # send empty str do default muatation
+            mq.send("", True, type=TYPE_EMPTY_SEED)
 
-# Build the dataset.
+
+def reward_thread():
+    """
+    Thread to receive reward info from fuzzer. Reward info stored in global id_rwd_map.
+    """
+    try:
+        # Create a new message queue or get an existing one
+        rw_mq = sysv_ipc.MessageQueue(4321, sysv_ipc.IPC_CREAT)
+    except sysv_ipc.ExistentialError:
+        print(f"Message queue with key {4321} already exists.")
+        return
+    while True:
+        rw_msg, rw_mtype = rw_mq.receive(type=TYPE_REWARD)
+        # receive reward msg(uid + reward)
+        decoded_msg = struct.unpack("ii", rw_msg)
+        global id_rwd_map
+        if decoded_msg[0] in id_rwd_map:
+            # reward should be in range [-3,3]
+            if decoded_msg[1] > 4000:
+                id_rwd_map[decoded_msg[0]] = 3.0
+            else:
+                id_rwd_map[decoded_msg[0]] = float(decoded_msg[1]) / 1000.0 - 3.0
+        else:
+            rw_mq.send(
+                struct.pack("I", decoded_msg[0]) + struct.pack("I", decoded_msg[1]),
+                True,
+                type=TYPE_REWARD,
+            )
+
+
+def calculate_reward(seed_batch):
+    """
+    Calculate rewards by bitmap.
+
+    Returns:
+        list of rewards.
+    """
+    global seed_id_map, id_rwd_map
+    start_time = time.time()
+    while time.time() - start_time < 100:
+        if id_rwd_map[seed_id_map[seed_batch[0]]] != 0.0:
+            return [torch.tensor(id_rwd_map[seed_id_map[i]]) for i in seed_batch]
+    return [torch.tensor(id_rwd_map[seed_id_map[i]]) for i in seed_batch]
+
+
+def hex_string_to_hex(hex_string):
+    """
+    Formatting generated hex string.
+
+    Returns:
+        String of hex.
+    """
+    print(hex_string)
+    hex_string = hex_string.replace(
+        "### Output:",
+        " ",
+    )
+    hex_string = re.sub(r"[^a-zA-Z0-9\s]", " ", hex_string)
+    hex_values = hex_string.replace("0x", " ")
+
+    sections = hex_values.split()  # Split the string into sections
+
+    # Iterate through the sections and add leading zeros if needed
+    result = []
+    for section in sections:
+        if len(section) == 1:
+            section = "0" + section
+            result.append(section)
+        elif len(section) == 2:
+            result.append(section)
+    return "".join(result)
+
+
+
 def build_dataset(
-    tokenizer, dataset_path, input_min_text_length=2, input_max_text_length=32
+    tokenizer, dataset_path
 ):
     """
-    Build dataset for training. This builds the dataset from `load_dataset`, one should
-    customize this function to train the model on its own dataset.
+    Build dataset for ppo process.
 
     Returns:
         dataloader (`torch.utils.data.DataLoader`):
@@ -192,12 +209,8 @@ def build_dataset(
         split="train",
         delimiter="/n",
     )
-
-    input_size = LengthSampler(input_min_text_length, input_max_text_length)
-
     def tokenize(sample):
-        sample["input_ids"] = tokenizer.encode(sample["context"])[: input_size()]
-        sample["query"] = tokenizer.decode(sample["input_ids"])
+        sample["input_ids"] = tokenizer(sample["context"])["input_ids"]
         return sample
 
     ds = ds.map(tokenize, batched=False)
@@ -210,6 +223,9 @@ def collator(data):
 
 
 def main():
+    """
+    Main function to run PPO loop
+    """
     # Init the tokenizer and dataset
     tokenizer = AutoTokenizer.from_pretrained(
         os.path.join(cur_path, args.ppo_config.model_name),
@@ -268,7 +284,7 @@ def main():
         "do_sample": True,
         "min_length": -1,
         "top_p": 0.85, # 0.9
-        "top_k": 512,
+        # "top_k": 1250,
         "pad_token_id": tokenizer.bos_token_id,
     }
     # flash attention 1
@@ -280,8 +296,8 @@ def main():
         query_tensors = batch["input_ids"]
         response_tensors = ppo_trainer.generate(
             query_tensors,
-            return_prompt=True,
-            length_sampler=LengthSampler(2, 512),
+            max_length=1850, # Input_length is over 1317, the max_length should be longer than Input_length, but may lead to slow generation
+            return_prompt=False,
             **generation_kwargs,
         )
 
