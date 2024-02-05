@@ -295,7 +295,7 @@ def main():
         query_tensors = batch["input_ids"]
         response_tensors = ppo_trainer.generate(
             query_tensors,
-            max_length=1850, # Input_length is over 1317, the max_length should be longer than Input_length, but may lead to slow generation
+            max_length=1680, # Input_length is over 1317, the max_length should be longer than Input_length, but may lead to slow generation
             return_prompt=False,
             **generation_kwargs,
         )
