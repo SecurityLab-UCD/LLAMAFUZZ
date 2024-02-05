@@ -43,7 +43,7 @@ class ScriptArguments:
     """
     Setup experiment config
     """
-    dataset_path: str = os.path.join(cur_path, "prompts/libjpg_mutate_question.csv")
+    dataset_path: str = os.path.join(cur_path, "prompts/libjpg_mutate_question_short.csv")
     ppo_config: PPOConfig = field(
         default_factory=lambda: PPOConfig(
             steps=10,
@@ -295,7 +295,7 @@ def main():
         query_tensors = batch["input_ids"]
         response_tensors = ppo_trainer.generate(
             query_tensors,
-            max_length=1680, # Input_length is over 1317, the max_length should be longer than Input_length, but may lead to slow generation
+            max_length=1000, # Input_length is less than 700, the max_length should be longer than Input_length, but may lead to slow generation
             return_prompt=False,
             **generation_kwargs,
         )
