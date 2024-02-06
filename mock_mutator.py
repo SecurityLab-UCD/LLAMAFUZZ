@@ -69,7 +69,7 @@ def mq_thread():
     Thread to receive request from fuzzer, and send generated seed to fuzzer
     """
     global message_queue, seed_id_map
-    with open('./prompts/mock_mutator.csv',newline='\n') as file:
+    with open('./structureLLM/prompts/mock_mutator.csv',newline='\n') as file:
         reader = csv.reader(file)
         for row in reader:
             message_queue.append(hex_string_to_hex(row))
