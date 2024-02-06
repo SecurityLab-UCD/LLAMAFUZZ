@@ -72,7 +72,7 @@ def mq_thread():
     with open('./structureLLM/prompts/mock_mutator.csv',newline='\n') as file:
         reader = csv.reader(file)
         for row in reader:
-            message_queue.append(hex_string_to_hex(row))
+            message_queue.append(hex_string_to_hex(row[0]))
     i=0
     try:
         mq = sysv_ipc.MessageQueue(1234, sysv_ipc.IPC_CREAT)
