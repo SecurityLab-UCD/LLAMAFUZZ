@@ -73,6 +73,7 @@ def mq_thread():
         reader = csv.reader(file)
         for row in reader:
             message_queue.append(hex_string_to_hex(row))
+    i=0
     try:
         mq = sysv_ipc.MessageQueue(1234, sysv_ipc.IPC_CREAT)
     except sysv_ipc.ExistentialError:
@@ -80,12 +81,14 @@ def mq_thread():
         return
     while True:
         # only receive request msg
+        i+=1
         msg, mtype = mq.receive(type=TYPE_REQUEST)
         if not message_queue == []:
             # send uid + seed
             seed = message_queue.pop(0)
+            print("seed:",seed)
             mq.send(
-                struct.pack("I", seed_id_map[seed]) + seed.encode("utf-8"),
+                struct.pack("I", i) + seed.encode("utf-8"),
                 True,
                 type=TYPE_SEED,
             )
