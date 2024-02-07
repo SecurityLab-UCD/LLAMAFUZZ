@@ -256,7 +256,9 @@ def main():
     while True:
         global seeds_from_fuzzer
         if seeds_from_fuzzer != []:
-            prompt = "### Input: ```Based on below hex bloaty seed, mutate a new bloaty seed. Make sure the example is complete and valid. "+seeds_from_fuzzer.pop()+"```"
+            seed_from_fuzzer = seeds_from_fuzzer.pop()
+            prompt = "### Input: ```Based on below hex bloaty seed, mutate a new bloaty seed. Make sure the example is complete and valid. "+seed_from_fuzzer+"```"
+            print(seed_from_fuzzer)
         else:
             prompt = default_prompt
         query_tensors = tokenizer(prompt, return_tensors="pt")["input_ids"].to('cuda')
