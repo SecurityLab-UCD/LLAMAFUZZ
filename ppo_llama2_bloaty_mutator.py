@@ -171,10 +171,10 @@ def hex_string_to_hex(hex_string):
     Returns:
         String of hex.
     """
-    hex_string = hex_string.replace(
-        "### Output:",
-        " ",
-    )
+    print(hex_string)
+    if len(hex_string.split("### Output:"))>=2:
+        hex_string = hex_string.split("### Output:")[1]
+        
     hex_string = re.sub(r"[^a-zA-Z0-9\s]", " ", hex_string)
     hex_values = hex_string.replace("0x", " ")
 
@@ -244,22 +244,27 @@ def main():
         enable_flash=True, enable_math=False, enable_mem_efficient=False
     )
     default_prompt = "### Input: ```Based on below hex bloaty seed, mutate a new bloaty seed. Make sure the example is complete and valid. Only return the solution. 0x00x61,0x730x6d,0x00x41,0x760x43,0x20x57,0x1d0x1,0x10x1,0xe80x3,0x10xff,0xff0x0,0x00x1,0x00x3,0x4b0x0,0x00x0,0x10x1,0x10x1,0x1d0x1,0x10x1,0x10x1,0x10x1,0x10x1,0x10x1,0x10x1,0x10x1,0x10x11,0x10xcc,0xcc0xcc,0xcc0xcc,0xcc0xcc,0xcc0xcc,0xcc0xcc,0xcc0xcc,0xcc0xcc,0xcc0xcc,0xcc0xcc,0xcc0xcc,0xcc0xcc,0xcc0xcc,0xcc0xcc,0xcc0xcc,0xcc0x1,0x10x1,0x10x1,0x10x1,0x10x1,0x10x1,0x10x1,0x10x1,0x10x1,0x10x1,0x10x1,0x10x1,0x10x1```"
+
+    generation_kwargs = {
+        "do_sample": True,
+        "min_length": -1,
+        "top_p": 0.85, # 0.9
+        # "top_k": 1250,
+        "pad_token_id": tokenizer.bos_token_id,
+    }
+
     while True:
         global seeds_from_fuzzer
         if seeds_from_fuzzer != []:
-            prompt = "### Input: ```Based on below hex bloaty seed, mutate a new bloaty seed. Make sure the example is complete and valid.".join(seeds_from_fuzzer.pop(),"```")
+            prompt = "### Input: ```Based on below hex bloaty seed, mutate a new bloaty seed. Make sure the example is complete and valid. "+seeds_from_fuzzer.pop()+"```"
         else:
             prompt = default_prompt
-        query_tensors = tokenizer(prompt, return_tensors="pt")["input_ids"]
-
+        query_tensors = tokenizer(prompt, return_tensors="pt")["input_ids"].to('cuda')
+        
         response_tensors = model.generate(
-            query_tensors,
+            input_ids=query_tensors,
             max_length=1000, # Input_length is less than 700, the max_length should be longer than Input_length, but may lead to slow generation
-            return_prompt=False,
-            do_sample = True, # Sampling generation strategy https://huggingface.co/blog/zh/how-to-generate
-            min_length = -1,
-            top_p = 0.85,
-            top_k = 1000
+            **generation_kwargs,
         )
 
 
