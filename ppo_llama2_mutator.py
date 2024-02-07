@@ -35,6 +35,7 @@ output_dir = os.path.join(cur_path, "ppo_checkpoint")
 message_queue = []
 seed_id_map = {}
 id_rwd_map = {}
+seeds_from_fuzzer = []
 uid = 1
 shared_resource_lock = threading.Lock()
 
