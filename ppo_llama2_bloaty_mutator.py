@@ -171,7 +171,6 @@ def hex_string_to_hex(hex_string):
     Returns:
         String of hex.
     """
-    print(hex_string)
     if len(hex_string.split("### Output:"))>=2:
         hex_string = hex_string.split("### Output:")[1]
         
