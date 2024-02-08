@@ -106,7 +106,7 @@ def mq_thread():
     while True:
         # only receive request msg
         msg, mtype = mq.receive(type=TYPE_REQUEST)
-        print('msg:::',msg)
+        print('msg:::',msg.decode())
         if msg != b'':
             seeds_from_fuzzer.append(msg.decode())
         if not message_queue == []:
