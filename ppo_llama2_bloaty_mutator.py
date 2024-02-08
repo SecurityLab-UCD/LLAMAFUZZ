@@ -107,7 +107,8 @@ def mq_thread():
         # only receive request msg
         msg, mtype = mq.receive(type=TYPE_REQUEST)
         if msg != b'':
-            print('msg:::',msg,"@@", msg.decode()[4:]) # skip first 4 element
+            if len(seeds_from_fuzzer)>100:
+                seeds_from_fuzzer.clear()
             seeds_from_fuzzer.add(msg.decode()[4:])
         if not message_queue == []:
             # send uid + seed
