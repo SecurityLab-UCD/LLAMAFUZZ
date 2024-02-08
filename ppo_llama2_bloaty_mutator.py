@@ -109,7 +109,7 @@ def mq_thread():
         if msg != b'':
             if len(seeds_from_fuzzer)>100:
                 seeds_from_fuzzer.clear()
-            seeds_from_fuzzer.add(msg.decode()[4:])
+            seeds_from_fuzzer.add(msg.decode(errors='ignore')[4:])
         if not message_queue == []:
             # send uid + seed
             seed = message_queue.pop(0)
@@ -257,7 +257,7 @@ def main():
 
     while True:
         global seeds_from_fuzzer
-        if seeds_from_fuzzer != []:
+        if seeds_from_fuzzer:
             seed_from_fuzzer = seeds_from_fuzzer.pop()
             formatted_chunks = []
             for i in range(0,len(seed_from_fuzzer),4):
