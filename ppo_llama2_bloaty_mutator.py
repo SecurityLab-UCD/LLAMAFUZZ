@@ -35,7 +35,7 @@ output_dir = os.path.join(cur_path, "ppo_checkpoint")
 message_queue = []
 seed_id_map = {}
 id_rwd_map = {}
-seeds_from_fuzzer = []
+seeds_from_fuzzer = {}
 uid = 1
 shared_resource_lock = threading.Lock()
 
@@ -107,8 +107,8 @@ def mq_thread():
         # only receive request msg
         msg, mtype = mq.receive(type=TYPE_REQUEST)
         if msg != b'':
-            print('msg:::',msg,"@@", msg.decode())
-            seeds_from_fuzzer.append(msg.decode())
+            print('msg:::',msg,"@@", msg.decode()[4:]) # skip first 4 element
+            seeds_from_fuzzer.add(msg.decode()[4:])
         if not message_queue == []:
             # send uid + seed
             seed = message_queue.pop(0)
@@ -258,7 +258,15 @@ def main():
         global seeds_from_fuzzer
         if seeds_from_fuzzer != []:
             seed_from_fuzzer = seeds_from_fuzzer.pop()
-            prompt = "### Input: ```Based on below hex bloaty seed, mutate a new bloaty seed. Make sure the example is complete and valid. "+seed_from_fuzzer+"```"
+            formatted_chunks = []
+            for i in range(0,len(seed_from_fuzzer),4):
+                if i+3 < len(seed_from_fuzzer):
+                    formatted_chunks.append(f"0x{seed_from_fuzzer[i:i+2]}0x{seed_from_fuzzer[i+2:i+4]}")
+                else:
+                    # If no pair, add the single element
+                    formatted_chunks.append(f"0x{seed_from_fuzzer[i:]}")
+
+            prompt = "### Input: ```Based on below hex bloaty seed, mutate a new bloaty seed. Make sure the example is complete and valid. "+','.join(formatted_chunks)+"```"
             print(seed_from_fuzzer)
         else:
             prompt = default_prompt
