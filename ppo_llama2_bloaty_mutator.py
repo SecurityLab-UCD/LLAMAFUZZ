@@ -262,7 +262,7 @@ def main():
         global seeds_from_fuzzer
         if seeds_from_fuzzer:
             seed_from_fuzzer = seeds_from_fuzzer.pop()
-            if seed_from_fuzzer>1000:
+            if len(seed_from_fuzzer)>1000:
                 print(":::fuzzer seed limit to 1k")
                 seed_from_fuzzer = seed_from_fuzzer[:1000]
             formatted_chunks = []
