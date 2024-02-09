@@ -262,6 +262,9 @@ def main():
         global seeds_from_fuzzer
         if seeds_from_fuzzer:
             seed_from_fuzzer = seeds_from_fuzzer.pop()
+            if seed_from_fuzzer>1000:
+                print(":::fuzzer seed limit to 1k")
+                seed_from_fuzzer = seed_from_fuzzer[:1000]
             formatted_chunks = []
             for i in range(0,len(seed_from_fuzzer),4):
                 if i+3 < len(seed_from_fuzzer):
@@ -277,7 +280,7 @@ def main():
         
         response_tensors = model.generate(
             input_ids=query_tensors,
-            #max_length=1000, # Input_length is less than 700, the max_length should be longer than Input_length, but may lead to slow generation
+            max_length=1000, # Input_length is less than 700, the max_length should be longer than Input_length, but may lead to slow generation
             **generation_kwargs,
         )
 
