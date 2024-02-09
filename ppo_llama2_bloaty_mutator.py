@@ -113,6 +113,9 @@ def mq_thread():
         if not message_queue == []:
             # send uid + seed
             seed = message_queue.pop(0)
+            # The queue's max_message_size (2048)
+            if len(seed)>2048:
+                seed = seed[:2048]
             mq.send(
                 struct.pack("I", seed_id_map[seed]) + seed.encode("utf-8"),
                 True,
@@ -252,7 +255,6 @@ def main():
         "min_length": -1,
         "top_p": 0.85, # 0.9
         # "top_k": 1250,
-        "decoder_start_token_id":0,
         "pad_token_id": tokenizer.bos_token_id,
     }
 
