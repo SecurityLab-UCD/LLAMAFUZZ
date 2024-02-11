@@ -159,21 +159,6 @@ def reward_thread():
             )
 
 
-# def calculate_reward(seed_batch):
-#     """
-#     Calculate rewards by bitmap.
-
-#     Returns:
-#         list of rewards.
-#     """
-#     global seed_id_map, id_rwd_map
-#     start_time = time.time()
-#     while time.time() - start_time < 100:
-#         if id_rwd_map[seed_id_map[seed_batch[0]]] != 0.0:
-#             return [torch.tensor(id_rwd_map[seed_id_map[i]]) for i in seed_batch]
-#     return [torch.tensor(id_rwd_map[seed_id_map[i]]) for i in seed_batch]
-
-
 def hex_string_to_hex(hex_string):
     """
     Formatting generated hex string.
@@ -189,7 +174,7 @@ def hex_string_to_hex(hex_string):
 
         
     hex_string = re.sub(r"[^a-zA-Z0-9\s]", " ", hex_string)
-    hex_values = hex_string.replace("### Input: ```Based on below hex {fuzzing_target} seed, mutate a new {fuzzing_target} seed. Make sure the example is complete and valid.", " ")
+    hex_values = hex_string.replace("### Input: ```Based on below hex libpng seed, mutate a new libpng seed. Make sure the example is complete and valid.", " ")
 
     sections = hex_values.split()  # Split the string into sections
 
@@ -270,10 +255,6 @@ def main():
         global seeds_from_fuzzer
         if seeds_from_fuzzer:
             seed_from_fuzzer = seeds_from_fuzzer.pop()
-            if len(seed_from_fuzzer)>1000:
-                print(":::fuzzer seed limit to 1k")
-                print(seed_from_fuzzer)
-                seed_from_fuzzer = seed_from_fuzzer[:1000]
             formatted_chunks = []
             for i in range(0,len(seed_from_fuzzer),4):
                 if i+3 < len(seed_from_fuzzer):
@@ -289,7 +270,7 @@ def main():
         
         response_tensors = model.generate(
             input_ids=query_tensors,
-            max_length=1000, # Input_length is less than 700, the max_length should be longer than Input_length, but may lead to slow generation
+            max_new_tokens=300,
             **generation_kwargs,
         )
 
@@ -311,9 +292,6 @@ def main():
             seed_batch.append(seed)
             print("seed:::",seed)
         uid += 8
-        # iterate msgs record reward
-        # rewards = calculate_reward(seed_batch)
-        # print("Rewards:::", rewards)
 
         torch.cuda.empty_cache()
 
