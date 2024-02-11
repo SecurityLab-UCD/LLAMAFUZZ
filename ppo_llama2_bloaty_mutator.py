@@ -106,25 +106,28 @@ def mq_thread():
         return
     while True:
         # only receive request msg
-        msg, mtype = mq.receive(type=TYPE_REQUEST)
-        if msg != b'':
-            if len(seeds_from_fuzzer)>100:
-                seeds_from_fuzzer.clear()
-            seeds_from_fuzzer.add(msg.decode(errors='ignore')[4:])
-        if not message_queue == []:
-            # send uid + seed
-            seed = message_queue.pop(0)
-            # The queue's max_message_size (2048)
-            if len(seed)>2048:
-                seed = seed[:2048]
-            mq.send(
-                struct.pack("I", seed_id_map[seed]) + seed.encode("utf-8"),
-                True,
-                type=TYPE_SEED,
-            )
-        else:
-            # send empty str do default muatation
-            mq.send("", True, type=TYPE_EMPTY_SEED)
+        try:
+            msg, mtype = mq.receive(type=TYPE_REQUEST)
+            if msg != b'':
+                if len(seeds_from_fuzzer)>100:
+                    seeds_from_fuzzer.clear()
+                seeds_from_fuzzer.add(msg.decode(errors='ignore')[4:])
+            if not message_queue == []:
+                # send uid + seed
+                seed = message_queue.pop(0)
+                # The queue's max_message_size (2048)
+                if len(seed)>2048:
+                    seed = seed[:2048]
+                mq.send(
+                    struct.pack("I", seed_id_map[seed]) + seed.encode("utf-8"),
+                    True,
+                    type=TYPE_SEED,
+                )
+            else:
+                # send empty str do default muatation
+                mq.send("", True, type=TYPE_EMPTY_SEED)
+        except RuntimeError as e:
+            print(e)
 
 
 def reward_thread():
@@ -180,9 +183,12 @@ def hex_string_to_hex(hex_string):
     """
     if len(hex_string.split("### Output:"))>=2:
         hex_string = hex_string.split("### Output:")[1]
+    else:
+        hex_string = hex_string.replace("0x", " ")
+
         
     hex_string = re.sub(r"[^a-zA-Z0-9\s]", " ", hex_string)
-    hex_values = hex_string.replace("0x", " ")
+    hex_values = hex_string.replace("### Input: ```Based on below hex {fuzzing_target} seed, mutate a new {fuzzing_target} seed. Make sure the example is complete and valid.", " ")
 
     sections = hex_values.split()  # Split the string into sections
 
