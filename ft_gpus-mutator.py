@@ -17,8 +17,8 @@ from transformers import (
 
 from trl import SFTTrainer
 
-new_model = "llama-2-7b-structured-bloaty-hex-mutator"
-dataset_path = "/home/hxxzhang/dataset/all_seeds/bloaty_fuzz_target-aflplusplus_256qa.csv"
+new_model = "llama-2-7b-structured-libpng-hex-mutator"
+dataset_path = "/home/hxxzhang/dataset/all_seeds/libpng_libpng_read_fuzzer-aflplusplusqa.csv"
 
 device = Accelerator().local_process_index
 
