@@ -166,15 +166,14 @@ def hex_string_to_hex(hex_string):
     Returns:
         String of hex.
     """
-    print(hex_string)
     if len(hex_string.split("### Output:"))>=2:
-        hex_string = hex_string.split("### Output:")[1]
+        hex_string =hex_string.split("### Output:")[1]
     else:
-        hex_string = hex_string.replace("0x", " ")
+        hex_string = hex_string.replace("### Input: ```Based on below hex libpng seed, mutate a new libpng seed. Make sure the example is complete and valid.", " ")
 
         
     hex_string = re.sub(r"[^a-zA-Z0-9\s]", " ", hex_string)
-    hex_values = hex_string.replace("### Input: ```Based on below hex libpng seed, mutate a new libpng seed. Make sure the example is complete and valid.", " ")
+    hex_values = hex_string.replace("0x", " ")
 
     sections = hex_values.split()  # Split the string into sections
 
@@ -270,7 +269,7 @@ def main():
         
         response_tensors = model.generate(
             input_ids=query_tensors,
-            max_new_tokens=300,
+            max_new_tokens=400,
             **generation_kwargs,
         )
 
