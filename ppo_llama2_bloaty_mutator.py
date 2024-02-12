@@ -115,9 +115,6 @@ def mq_thread():
             if not message_queue == []:
                 # send uid + seed
                 seed = message_queue.pop(0)
-                # The queue's max_message_size (2048)
-                if len(seed)>2048:
-                    seed = seed[:2048]
                 mq.send(
                     struct.pack("I", seed_id_map[seed]) + seed.encode("utf-8"),
                     True,
@@ -185,7 +182,10 @@ def hex_string_to_hex(hex_string):
             result.append(section)
         elif len(section) == 2:
             result.append(section)
-    return "".join(result)
+    result = "".join(result)
+    if len(result)>2048: #limite seed size to 2048
+        result = result[:2048]
+    return result
 
 
 
