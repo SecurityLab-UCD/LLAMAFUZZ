@@ -183,8 +183,8 @@ def hex_string_to_hex(hex_string):
         elif len(section) == 2:
             result.append(section)
     result = "".join(result)
-    if len(result)>2048: #limite seed size to 2048
-        result = result[:2048]
+    if len(result)>2040: #limite seed size to 2048
+        result = result[:2040]
     return result
 
 
