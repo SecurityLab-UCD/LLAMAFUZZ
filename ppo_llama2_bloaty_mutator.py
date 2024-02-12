@@ -5,7 +5,6 @@ import os
 import torch
 import tyro
 from accelerate import Accelerator
-from datasets import load_dataset
 from peft import LoraConfig
 from tqdm import tqdm
 from transformers import AutoTokenizer, BitsAndBytesConfig
@@ -13,7 +12,6 @@ from transformers import AutoTokenizer, BitsAndBytesConfig
 from trl import (
     AutoModelForCausalLMWithValueHead,
     PPOConfig,
-    PPOTrainer,
     set_seed,
 )
 import threading
@@ -156,7 +154,7 @@ def reward_thread():
             )
 
 
-def hex_string_to_hex(hex_string):
+def hex_string_to_hex(hex_string,fuzzing_target):
     """
     Formatting generated hex string.
 
@@ -166,14 +164,12 @@ def hex_string_to_hex(hex_string):
     if len(hex_string.split("### Output:"))>=2:
         hex_string =hex_string.split("### Output:")[1]
     else:
-        hex_string = hex_string.replace("### Input: ```Based on below hex libpng seed, mutate a new libpng seed. Make sure the example is complete and valid.", " ")
+        hex_string = hex_string.replace(f"### Input: ```Based on below hex {fuzzing_target} seed, mutate a new {fuzzing_target} seed. Make sure the example is complete and valid.", " ")
 
-        
     hex_string = re.sub(r"[^a-zA-Z0-9\s]", " ", hex_string)
     hex_values = hex_string.replace("0x", " ")
-
-    sections = hex_values.split()  # Split the string into sections
-
+    # Split the string into sections
+    sections = hex_values.split()
     # Iterate through the sections and add leading zeros if needed
     result = []
     for section in sections:
@@ -282,7 +278,7 @@ def main():
         global uid, seed_id_map, id_rwd_map, message_queue
         seed_batch = []
         for r in response:
-            seed = hex_string_to_hex(r)
+            seed = hex_string_to_hex(r,fuzzing_target)
             shared_resource_lock.acquire()
             seed_id_map[seed] = uid + os.getpid()
             id_rwd_map[uid + os.getpid()] = float(0.0)
