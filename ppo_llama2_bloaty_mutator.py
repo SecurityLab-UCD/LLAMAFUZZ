@@ -35,7 +35,7 @@ seed_id_map = {}
 id_rwd_map = {}
 seeds_from_fuzzer = set()
 uid = 1
-fuzzing_target = 'libpng'
+fuzzing_target = 'bloaty'
 shared_resource_lock = threading.Lock()
 
 @dataclass
@@ -46,7 +46,7 @@ class ScriptArguments:
     ppo_config: PPOConfig = field(
         default_factory=lambda: PPOConfig(
             steps=10,
-            model_name="llama-2-7b-structured-libpng-hex-mutator",
+            model_name=f"llama-2-7b-structured-{fuzzing_target}-hex-mutator",
             query_dataset=None,
             reward_model=None,
             learning_rate=1e-5,
