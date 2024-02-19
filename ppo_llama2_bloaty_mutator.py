@@ -35,7 +35,7 @@ seed_id_map = {}
 id_rwd_map = {}
 seeds_from_fuzzer = set()
 uid = 1
-fuzzing_target = 'libpng'
+fuzzing_target = 'bloaty'
 shared_resource_lock = threading.Lock()
 
 @dataclass
