@@ -17,8 +17,9 @@ from transformers import (
 
 from trl import SFTTrainer
 
-new_model = "llama-2-7b-structured-libpng-hex-mutator"
-dataset_path = "/home/hxxzhang/dataset/all_seeds/libpng_libpng_read_fuzzer-aflplusplusqa.csv"
+target = "zlib"
+new_model = f"llama-2-7b-structured-{target}-hex-mutator"
+dataset_path = "/home/hxxzhang/dataset/all_seeds/zlib_zlib_uncompress_fuzzer-aflplusplusqa.csv"
 
 device = Accelerator().local_process_index
 
@@ -34,7 +35,7 @@ class ScriptArguments:
         default=1, metadata={"help": "the per device train batch size"}
     )
     seq_length: Optional[int] = field(
-        default=1250, metadata={"help": "the sequence length"}
+        default=1600, metadata={"help": "the sequence length"}
     )
     max_steps: Optional[int] = field(
         default=-1,
