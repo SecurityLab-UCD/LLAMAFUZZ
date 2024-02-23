@@ -29,7 +29,7 @@ class ScriptArguments:
         default="meta-llama/Llama-2-7b-chat-hf", metadata={"help": "the model name"}
     )
     num_train_epochs: Optional[int] = field(
-        default=50, metadata={"help": "Number of training epochs"}
+        default=20, metadata={"help": "Number of training epochs"}
     )
     per_device_train_batch_size: Optional[int] = field(
         default=1, metadata={"help": "the per device train batch size"}
