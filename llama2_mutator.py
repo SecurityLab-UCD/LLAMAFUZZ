@@ -242,9 +242,9 @@ def main():
     generation_kwargs = {
         "do_sample": True,
         "min_length": -1,
-        "top_p": 0.9, # 0.9
-        "top_k": 400,
-        "temperature":1.25,
+        "top_p": 0.92, # 0.9
+        "top_k": 50,
+        "temperature":1.35,
         "pad_token_id": tokenizer.bos_token_id,
     }
 
