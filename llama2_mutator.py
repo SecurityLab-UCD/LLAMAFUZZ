@@ -205,7 +205,6 @@ def main():
 
     # Build the model.
     peft_config = args.peft_config
-    ref_model = None
     # Copy the model to each device
     current_device = Accelerator().local_process_index
     device_map = {"": current_device}
@@ -249,6 +248,7 @@ def main():
 
     while True:
         global seeds_from_fuzzer
+        prompt = default_prompt
         if seeds_from_fuzzer:
             seed_from_fuzzer = seeds_from_fuzzer.pop()
             formatted_chunks = []
@@ -260,16 +260,13 @@ def main():
                     formatted_chunks.append(f"0x{seed_from_fuzzer[i:]}")
 
             prompt = "### Input: ```Based on below hex "+fuzzing_target+" seed, mutate a new "+fuzzing_target+" seed. Make sure the example is complete and valid. "+','.join(formatted_chunks)+"```"
-        else:
-            prompt = default_prompt
         query_tensors = tokenizer(prompt, return_tensors="pt")["input_ids"].to('cuda')
-        
+        print(query_tensors)
         response_tensors = model.generate(
             input_ids=query_tensors,
             max_new_tokens=400,
             **generation_kwargs,
         )
-
 
         response = tokenizer.batch_decode(
             response_tensors, skip_special_tokens=True
