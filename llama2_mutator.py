@@ -261,7 +261,6 @@ def main():
 
             prompt = "### Input: ```Based on below hex "+fuzzing_target+" seed, mutate a new "+fuzzing_target+" seed. Make sure the example is complete and valid. "+','.join(formatted_chunks)+"```"
         query_tensors = tokenizer(prompt, return_tensors="pt")["input_ids"].to('cuda')
-        print(query_tensors)
         response_tensors = model.generate(
             input_ids=query_tensors,
             max_new_tokens=400,
