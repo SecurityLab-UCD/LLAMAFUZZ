@@ -261,6 +261,7 @@ def main():
 
             prompt = "### Input: ```Based on below hex "+fuzzing_target+" seed, mutate a new "+fuzzing_target+" seed. Make sure the example is complete and valid. "+','.join(formatted_chunks)+"```"
         query_tensors = tokenizer(prompt, return_tensors="pt")["input_ids"].to('cuda')
+        start_time = time.time()
         response_tensors = model.generate(
             input_ids=query_tensors,
             max_new_tokens=400,
@@ -270,7 +271,9 @@ def main():
         response = tokenizer.batch_decode(
             response_tensors, skip_special_tokens=True
         )
-
+        end_time = time.time()
+        runtime = end_time - start_time
+        print(f"Runtime of generation ::: {runtime} seconds")
         # Compute sentiment score
         global uid, seed_id_map, id_rwd_map, message_queue
         seed_batch = []
@@ -284,7 +287,7 @@ def main():
             seed_batch.append(seed)
             print("seed:::",seed)
         uid += 8
-
+        print(f"Runtime of compute ::: {end_time-time.time()} seconds")
         torch.cuda.empty_cache()
 
 if __name__ == "__main__":
