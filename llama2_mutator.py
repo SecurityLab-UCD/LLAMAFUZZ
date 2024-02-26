@@ -18,6 +18,7 @@ import threading
 import re
 import sysv_ipc
 import struct
+import time
 
 tqdm.pandas()
 
@@ -271,4 +272,5 @@ if __name__ == "__main__":
     # if accelerator.is_main_process:
     # t2 = threading.Thread(target=reward_thread, args=())
     # t2.start()
+    time.sleep(7200)
     main()
