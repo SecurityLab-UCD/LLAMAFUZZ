@@ -87,6 +87,11 @@ def mq_thread():
     while True:
         # only receive request msg
         try:
+            msg, mtype = mq.receive(type=TYPE_REQUEST)
+            if msg != b'':
+                if len(seeds_from_fuzzer)>100:
+                    seeds_from_fuzzer.clear()
+                seeds_from_fuzzer.add(msg.decode(errors='ignore')[4:])
             while message_queue !=[]:
                 # send uid + seed
                 seed = message_queue.pop(0)
@@ -95,43 +100,8 @@ def mq_thread():
                     True,
                     type=TYPE_SEED,
                 )
-            msg, mtype = mq.receive(type=TYPE_REQUEST)
-            if msg != b'':
-                if len(seeds_from_fuzzer)>100:
-                    seeds_from_fuzzer.clear()
-                seeds_from_fuzzer.add(msg.decode(errors='ignore')[4:])
         except RuntimeError as e:
             print(e)
-
-
-def reward_thread():
-    """
-    Thread to receive reward info from fuzzer. Reward info stored in global id_rwd_map.
-    """
-    try:
-        # Create a new message queue or get an existing one
-        rw_mq = sysv_ipc.MessageQueue(4321, sysv_ipc.IPC_CREAT)
-    except sysv_ipc.ExistentialError:
-        print(f"Message queue with key {4321} already exists.")
-        return
-    while True:
-        rw_msg, rw_mtype = rw_mq.receive(type=TYPE_REWARD)
-        # receive reward msg(uid + reward)
-        decoded_msg = struct.unpack("ii", rw_msg)
-        global id_rwd_map
-        if decoded_msg[0] in id_rwd_map:
-            # reward should be in range [-3,3]
-            if decoded_msg[1] > 4000:
-                id_rwd_map[decoded_msg[0]] = 3.0
-            else:
-                id_rwd_map[decoded_msg[0]] = float(decoded_msg[1]) / 1000.0 - 3.0
-        else:
-            rw_mq.send(
-                struct.pack("I", decoded_msg[0]) + struct.pack("I", decoded_msg[1]),
-                True,
-                type=TYPE_REWARD,
-            )
-
 
 def hex_string_to_hex(hex_string,fuzzing_target):
     """
