@@ -87,12 +87,7 @@ def mq_thread():
     while True:
         # only receive request msg
         try:
-            msg, mtype = mq.receive(type=TYPE_REQUEST)
-            if msg != b'':
-                if len(seeds_from_fuzzer)>100:
-                    seeds_from_fuzzer.clear()
-                seeds_from_fuzzer.add(msg.decode(errors='ignore')[4:])
-            if not message_queue == []:
+            while message_queue !=[]:
                 # send uid + seed
                 seed = message_queue.pop(0)
                 mq.send(
@@ -100,9 +95,11 @@ def mq_thread():
                     True,
                     type=TYPE_SEED,
                 )
-            else:
-                # send empty str do default muatation
-                mq.send("", True, type=TYPE_EMPTY_SEED)
+            msg, mtype = mq.receive(type=TYPE_REQUEST)
+            if msg != b'':
+                if len(seeds_from_fuzzer)>100:
+                    seeds_from_fuzzer.clear()
+                seeds_from_fuzzer.add(msg.decode(errors='ignore')[4:])
         except RuntimeError as e:
             print(e)
 
@@ -254,15 +251,13 @@ def main():
         )
         # Compute sentiment score
         global uid, seed_id_map, id_rwd_map, message_queue
-        if len(message_queue)<3: # slowdown generation
-            print(len(message_queue),message_queue)
-            for r in response:
-                seed = hex_string_to_hex(r,fuzzing_target)
-                seed_id_map[seed] = uid + os.getpid()
-                # id_rwd_map[uid + os.getpid()] = float(0.0)
-                message_queue.append(seed)
-                print("seed:::",seed)
-            uid += 8
+        for r in response:
+            seed = hex_string_to_hex(r,fuzzing_target)
+            seed_id_map[seed] = uid + os.getpid()
+            # id_rwd_map[uid + os.getpid()] = float(0.0)
+            message_queue.append(seed)
+            print("seed:::",seed)
+        uid += 8
         torch.cuda.empty_cache()
 
 if __name__ == "__main__":
