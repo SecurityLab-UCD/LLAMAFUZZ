@@ -45,26 +45,8 @@ class ScriptArguments:
     """
     ppo_config: PPOConfig = field(
         default_factory=lambda: PPOConfig(
-            steps=10,
             model_name=f"llama-2-7b-structured-{fuzzing_target}-mix-hex-mutator",
-            query_dataset=None,
-            reward_model=None,
-            learning_rate=1e-5,
-            log_with=None,
-            mini_batch_size=1,
-            batch_size=1,
-            gradient_accumulation_steps=1,
-            early_stopping=False,
-            target_kl=0.1,
-            kl_penalty="kl",
-            ppo_epochs=6,
-            seed=0,
-            init_kl_coef=0.2,  # Initial KL coefficient.
-            adap_kl_ctrl=True,  # Whether to adapt KL control.
-            use_score_scaling=True,
-            use_score_norm=True,
-            score_clip=0.2,
-            optimize_cuda_cache=True,
+            seed=0
         )
     )
     peft_config: Optional[LoraConfig] = field(
@@ -276,15 +258,13 @@ def main():
         print(f"Runtime of generation ::: {runtime} seconds")
         # Compute sentiment score
         global uid, seed_id_map, id_rwd_map, message_queue
-        seed_batch = []
         for r in response:
             seed = hex_string_to_hex(r,fuzzing_target)
             shared_resource_lock.acquire()
             seed_id_map[seed] = uid + os.getpid()
-            id_rwd_map[uid + os.getpid()] = float(0.0)
+            # id_rwd_map[uid + os.getpid()] = float(0.0)
             shared_resource_lock.release()
             message_queue.append(seed)
-            seed_batch.append(seed)
             print("seed:::",seed)
         uid += 8
         print(f"Runtime of compute ::: {end_time-time.time()} seconds")
@@ -297,6 +277,6 @@ if __name__ == "__main__":
     )
     t.start()
     # if accelerator.is_main_process:
-    t2 = threading.Thread(target=reward_thread, args=())
-    t2.start()
+    # t2 = threading.Thread(target=reward_thread, args=())
+    # t2.start()
     main()
