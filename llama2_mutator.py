@@ -260,14 +260,11 @@ def main():
         global uid, seed_id_map, id_rwd_map, message_queue
         for r in response:
             seed = hex_string_to_hex(r,fuzzing_target)
-            shared_resource_lock.acquire()
             seed_id_map[seed] = uid + os.getpid()
             # id_rwd_map[uid + os.getpid()] = float(0.0)
-            shared_resource_lock.release()
             message_queue.append(seed)
             print("seed:::",seed)
         uid += 8
-        print(f"Runtime of compute ::: {end_time-time.time()} seconds")
         torch.cuda.empty_cache()
 
 if __name__ == "__main__":
