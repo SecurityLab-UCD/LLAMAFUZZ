@@ -92,14 +92,18 @@ def mq_thread():
                 if len(seeds_from_fuzzer)>100:
                     seeds_from_fuzzer.clear()
                 seeds_from_fuzzer.add(msg.decode(errors='ignore')[4:])
-            while message_queue !=[]:
-                # send uid + seed
-                seed = message_queue.pop(0)
-                mq.send(
-                    struct.pack("I", seed_id_map[seed]) + seed.encode("utf-8"),
-                    True,
-                    type=TYPE_SEED,
-                )
+            if message_queue !=[]:
+                while message_queue !=[]:
+                    # send uid + seed
+                    seed = message_queue.pop(0)
+                    mq.send(
+                        struct.pack("I", seed_id_map[seed]) + seed.encode("utf-8"),
+                        True,
+                        type=TYPE_SEED,
+                    )
+            else:
+                # send empty str do default muatation
+                mq.send("", True, type=TYPE_EMPTY_SEED)
         except RuntimeError as e:
             print(e)
 
