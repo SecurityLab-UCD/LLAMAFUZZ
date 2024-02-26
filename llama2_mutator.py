@@ -254,13 +254,14 @@ def main():
         )
         # Compute sentiment score
         global uid, seed_id_map, id_rwd_map, message_queue
-        for r in response:
-            seed = hex_string_to_hex(r,fuzzing_target)
-            seed_id_map[seed] = uid + os.getpid()
-            # id_rwd_map[uid + os.getpid()] = float(0.0)
-            message_queue.append(seed)
-            print("seed:::",seed)
-        uid += 8
+        if len(message_queue)<3: # slowdown generation
+            for r in response:
+                seed = hex_string_to_hex(r,fuzzing_target)
+                seed_id_map[seed] = uid + os.getpid()
+                # id_rwd_map[uid + os.getpid()] = float(0.0)
+                message_queue.append(seed)
+                print("seed:::",seed)
+            uid += 8
         torch.cuda.empty_cache()
 
 if __name__ == "__main__":
