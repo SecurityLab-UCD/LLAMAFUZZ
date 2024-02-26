@@ -255,6 +255,7 @@ def main():
         # Compute sentiment score
         global uid, seed_id_map, id_rwd_map, message_queue
         if len(message_queue)<3: # slowdown generation
+            print(len(message_queue),message_queue)
             for r in response:
                 seed = hex_string_to_hex(r,fuzzing_target)
                 seed_id_map[seed] = uid + os.getpid()
