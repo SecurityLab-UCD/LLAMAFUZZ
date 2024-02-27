@@ -18,7 +18,6 @@ base_model: meta-llama/Llama-2-7b-chat-hf
 
 
 - **Developed by:** [More Information Needed]
-- **Funded by [optional]:** [More Information Needed]
 - **Shared by [optional]:** [More Information Needed]
 - **Model type:** [More Information Needed]
 - **Language(s) (NLP):** [More Information Needed]
@@ -77,7 +76,7 @@ Use the code below to get started with the model.
 
 ### Training Data
 
-<!-- This should link to a Dataset Card, perhaps with a short stub of information on what the training data is all about as well as documentation related to data pre-processing or additional filtering. -->
+<!-- This should link to a Data Card, perhaps with a short stub of information on what the training data is all about as well as documentation related to data pre-processing or additional filtering. -->
 
 [More Information Needed]
 
@@ -108,7 +107,7 @@ Use the code below to get started with the model.
 
 #### Testing Data
 
-<!-- This should link to a Dataset Card if possible. -->
+<!-- This should link to a Data Card if possible. -->
 
 [More Information Needed]
 
@@ -203,7 +202,7 @@ Carbon emissions can be estimated using the [Machine Learning Impact calculator]
 
 
 The following `bitsandbytes` quantization config was used during training:
-- quant_method: bitsandbytes
+- quant_method: QuantizationMethod.BITS_AND_BYTES
 - load_in_8bit: False
 - load_in_4bit: True
 - llm_int8_threshold: 6.0

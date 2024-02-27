@@ -17,9 +17,9 @@ from transformers import (
 
 from trl import SFTTrainer
 
-target = "re2"
-new_model = f"llama-2-7b-structured-{target}-hex-mutator"
-dataset_path = "/home/hxxzhang/dataset/all_seeds/re2_fuzzer-aflplusplusqa_.csv"
+target = "libpng"
+new_model = f"llama-2-7b-structured-{target}-mix-hex-mutator"
+dataset_path = "/home/hxxzhang/dataset/all_seeds/libpng_libpng_read_fuzzer-aflplusplusqa_mix.csv"
 
 device = Accelerator().local_process_index
 
@@ -29,7 +29,7 @@ class ScriptArguments:
         default="meta-llama/Llama-2-7b-chat-hf", metadata={"help": "the model name"}
     )
     num_train_epochs: Optional[int] = field(
-        default=20, metadata={"help": "Number of training epochs"}
+        default=10, metadata={"help": "Number of training epochs"}
     )
     per_device_train_batch_size: Optional[int] = field(
         default=1, metadata={"help": "the per device train batch size"}
