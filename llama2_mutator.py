@@ -28,7 +28,7 @@ TYPE_REWARD = 3
 TYPE_REQUEST = 4
 
 access_token = "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"
-cur_path = os.path.join(os.getcwd(), "structureLLM")
+cur_path = os.path.realpath(__file__)
 output_dir = os.path.join(cur_path, "ppo_checkpoint")
 message_queue = []
 seed_id_map = {}
