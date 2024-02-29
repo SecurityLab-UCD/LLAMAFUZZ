@@ -191,7 +191,7 @@ def main():
         "min_length": -1,
         "top_p": 0.92, # 0.9
         "top_k": 50,
-        # "temperature":1.25,
+        "temperature":1.25,
         "pad_token_id": tokenizer.bos_token_id,
     }
 
