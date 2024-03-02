@@ -35,7 +35,7 @@ seed_id_map = {}
 id_rwd_map = {}
 seeds_from_fuzzer = set()
 uid = 1
-fuzzing_target = 'bloaty'
+fuzzing_target = 'libjpeg'
 shared_resource_lock = threading.Lock()
 
 @dataclass
@@ -45,7 +45,7 @@ class ScriptArguments:
     """
     ppo_config: PPOConfig = field(
         default_factory=lambda: PPOConfig(
-            model_name=f"llama-2-7b-structured-{fuzzing_target}-hex-mutator",
+            model_name=f"llama-2-7b-structured-{fuzzing_target}-mix-hex-mutator",
             seed=0
         )
     )
@@ -89,6 +89,7 @@ def mq_thread():
         try:
             msg, mtype = mq.receive(type=TYPE_REQUEST)
             if msg != b'':
+                print(":::from fuzzer")
                 if len(seeds_from_fuzzer)>100:
                     seeds_from_fuzzer.clear()
                 seeds_from_fuzzer.add(msg.decode(errors='ignore')[4:])
