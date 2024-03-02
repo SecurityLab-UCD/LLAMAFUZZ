@@ -89,7 +89,6 @@ def mq_thread():
         try:
             msg, mtype = mq.receive(type=TYPE_REQUEST)
             if msg != b'':
-                print(":::from fuzzer")
                 if len(seeds_from_fuzzer)>100:
                     seeds_from_fuzzer.clear()
                 seeds_from_fuzzer.add(msg.decode(errors='ignore')[4:])
@@ -199,6 +198,7 @@ def main():
     while True:
         global seeds_from_fuzzer
         prompt = default_prompt
+        is_from_fuzzer = False
         if seeds_from_fuzzer:
             seed_from_fuzzer = seeds_from_fuzzer.pop()
             formatted_chunks = []
@@ -210,6 +210,7 @@ def main():
                     formatted_chunks.append(f"0x{seed_from_fuzzer[i:]}")
 
             prompt = "### Input: ```Based on below hex "+fuzzing_target+" seed, mutate a new "+fuzzing_target+" seed. Make sure the example is complete and valid. "+','.join(formatted_chunks)+"```"
+            is_from_fuzzer = True
         query_tensors = tokenizer(prompt, return_tensors="pt")["input_ids"].to('cuda')
         response_tensors = model.generate(
             input_ids=query_tensors,
@@ -227,7 +228,10 @@ def main():
             seed_id_map[seed] = uid + os.getpid()
             # id_rwd_map[uid + os.getpid()] = float(0.0)
             message_queue.append(seed)
-            print("seed:::",seed)
+            if is_from_fuzzer:
+                print("sff:::",seed)
+            else:
+                print("seed:::",seed)
         uid += 8
         torch.cuda.empty_cache()
 
