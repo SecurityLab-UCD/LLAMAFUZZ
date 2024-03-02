@@ -90,7 +90,7 @@ def mq_thread():
         try:
             msg, mtype = mq.receive(type=TYPE_REQUEST)
             if msg != b'':
-                if len(seeds_from_fuzzer)>100:
+                if len(seeds_from_fuzzer)>30:
                     seeds_from_fuzzer.clear()
                 seeds_from_fuzzer.add(msg.decode(errors='ignore')[4:])
             while message_queue !=[]:
