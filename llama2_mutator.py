@@ -42,7 +42,7 @@ class ScriptArguments:
     """
     Setup experiment config
     """
-    fuzzing_target: Optional[str] = field(default='bloaty')
+    fuzzing_target: Optional[str] = field(default='libpng')
     if_mixed_model: Optional[bool] = field(default=True)
     peft_config: Optional[LoraConfig] = field(
         default_factory=lambda: LoraConfig(
