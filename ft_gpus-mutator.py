@@ -16,9 +16,9 @@ from transformers import (
 
 from trl import SFTTrainer
 
-target = "libjpeg"
-new_model = f"llama-2-7b-structured-{target}-mix-hex-mutator"
-dataset_path = "/home/hxxzhang/dataset/all_seeds/libjpeg-turbo_libjpeg_turbo_fuzzer-aflplusplus_256qa_mix_mix.csv"
+target = "libtiff"
+new_model = f"llama-2-7b-structured-{target}-new-mix-hex-mutator"
+dataset_path = "/home/hxxzhang/dataset/csv/libtiff-mix.csv"
 
 device = Accelerator().local_process_index
 
