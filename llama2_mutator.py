@@ -43,6 +43,7 @@ class ScriptArguments:
     Setup experiment config
     """
     fuzzing_target: Optional[str] = field(default='libpng')
+    fuzzing_object: Optional[str] = field(default='')
     if_mixed_model: Optional[bool] = field(default=True)
     peft_config: Optional[LoraConfig] = field(
         default_factory=lambda: LoraConfig(
@@ -135,6 +136,8 @@ def main():
     model_name = f"llama-2-7b-structured-{args.fuzzing_target}-hex-mutator"
     if args.if_mixed_model:
         model_name = f"llama-2-7b-structured-{args.fuzzing_target}-mix-hex-mutator"
+    if args.fuzzing_object!='':
+        model_name = f"llama-2-7b-structured-{args.fuzzing_target}-{args.fuzzing_object}-mix-hex-mutator"
     # Init the tokenizer and dataset
     tokenizer = AutoTokenizer.from_pretrained(
         os.path.join(cur_path, model_name),

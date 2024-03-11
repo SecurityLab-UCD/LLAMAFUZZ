@@ -17,8 +17,8 @@ from transformers import (
 from trl import SFTTrainer
 
 target = "libtiff"
-new_model = f"llama-2-7b-structured-{target}-mix-hex-mutator"
-dataset_path = "/home/hxxzhang/dataset/csv/libtiff_read_rgba-mix.csv"
+new_model = f"llama-2-7b-structured-{target}-libtiffcp-mix-hex-mutator"
+dataset_path = "/home/hxxzhang/dataset/csv/libtiffcp-mix.csv"
 
 device = Accelerator().local_process_index
 
