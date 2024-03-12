@@ -138,6 +138,8 @@ def main():
         model_name = f"llama-2-7b-structured-{args.fuzzing_target}-mix-hex-mutator"
     if args.fuzzing_object!='':
         model_name = f"llama-2-7b-structured-{args.fuzzing_target}-{args.fuzzing_object}-mix-hex-mutator"
+
+    model_name = "llama-2-7b-structured-libtiff-archive-mutator"
     # Init the tokenizer and dataset
     tokenizer = AutoTokenizer.from_pretrained(
         os.path.join(cur_path, model_name),
