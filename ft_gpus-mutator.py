@@ -16,9 +16,9 @@ from transformers import (
 
 from trl import SFTTrainer
 
-target = "libtiff"
-new_model = f"llama-2-7b-structured-{target}-libtiffcp-mix-hex-mutator"
-dataset_path = "/home/hxxzhang/dataset/csv/libtiffcp-mix.csv"
+target = "openssl-asn1"
+new_model = f"llama-2-7b-structured-{target}-mix-hex-mutator"
+dataset_path = "/home/hxxzhang/dataset/csv/asn1-mix.csv"
 
 device = Accelerator().local_process_index
 
@@ -130,7 +130,6 @@ bnb_config = BitsAndBytesConfig(
     device_map=device,
 )
 
-
 tokenizer = AutoTokenizer.from_pretrained(
     script_args.model_name, trust_remote_code=True, padding=True
 )
@@ -141,9 +140,9 @@ tokenizer.padding_side = "left" # Fix weird overflow issue with fp16 training
 
 # Load dataset (you can process it here)
 dataset = load_dataset(
-        "csv",
-        data_files=dataset_path,
-        split="train",
+    "csv",
+    data_files=dataset_path,
+    split="train",
 )
 
 base_model = AutoModelForCausalLM.from_pretrained(
@@ -170,15 +169,3 @@ trainer.train()  # resume_from_checkpoint=script_args.output_dir + "/final_check
 output_dir = os.path.join(script_args.output_dir, "final_checkpoint")
 trainer.save_model(new_model)
 trainer.model.save_pretrained(output_dir)
-
-# # Free memory for merging weights
-# del base_model
-# torch.cuda.empty_cache()
-
-# model = AutoPeftModelForCausalLM.from_pretrained(
-#     output_dir, device_map="auto", torch_dtype=torch.bfloat16
-# )
-# model = model.merge_and_unload()
-
-# output_merged_dir = os.path.join(script_args.output_dir, "final_merged_checkpoint")
-# model.save_pretrained(output_merged_dir, safe_serialization=True)
