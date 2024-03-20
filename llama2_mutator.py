@@ -48,6 +48,7 @@ class ScriptArguments:
     fuzzing_object: Optional[str] = field(default="")
     if_mixed_model: Optional[bool] = field(default=True)
     if_text: Optional[bool] = field(default=False)
+    temperature: Optional[float] = field(default="1.25")
     peft_config: Optional[LoraConfig] = field(
         default_factory=lambda: LoraConfig(
             r=64,
@@ -233,7 +234,7 @@ def main():
         "min_length": -1,
         "top_p": 0.92,  # 0.9
         "top_k": 50,
-        "temperature": 1.25,
+        "temperature": args.temperature,
         "pad_token_id": tokenizer.bos_token_id,
     }
 
