@@ -251,14 +251,17 @@ def main():
             is_from_fuzzer = True
 
         formatted_chunks = []
-        for i in range(0, len(current_seed), 4):
-            if i + 3 < len(current_seed):
-                formatted_chunks.append(
-                    f"0x{current_seed[i:i+2]}0x{current_seed[i+2:i+4]}"
-                )
-            else:
-                # If no pair, add the single element
-                formatted_chunks.append(f"0x{current_seed[i:]}")
+        if not args.if_text:
+            for i in range(0, len(current_seed), 4):
+                if i + 3 < len(current_seed):
+                    formatted_chunks.append(
+                        f"0x{current_seed[i:i+2]}0x{current_seed[i+2:i+4]}"
+                    )
+                else:
+                    # If no pair, add the single element
+                    formatted_chunks.append(f"0x{current_seed[i:]}")
+        else:
+            formatted_chunks.append(current_seed)
         prompt = (
             "### Input: ```Based on below hex "
             + args.fuzzing_target
