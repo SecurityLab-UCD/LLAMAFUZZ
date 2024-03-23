@@ -288,9 +288,9 @@ def main():
             # id_rwd_map[uid + os.getpid()] = float(0.0)
             message_queue.append(seed)
             if is_from_fuzzer:
-                print("sff:::", seed)
+                print("sff:::", seed[:10])
             else:
-                print("seed:::", seed)
+                print("seed:::", seed[:10])
         uid += 8
         torch.cuda.empty_cache()
 
