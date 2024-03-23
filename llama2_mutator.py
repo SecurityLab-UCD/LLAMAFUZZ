@@ -96,6 +96,8 @@ def mq_thread():
             while message_queue != []:
                 # send uid + seed
                 seed = message_queue.pop(0)
+                if len(seed) > 2040:
+                    seed = seed[:2040]
                 if not args.if_text:
                     mq.send(
                         struct.pack("I", seed_id_map[seed]) + seed.encode("utf-8"),
