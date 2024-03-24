@@ -227,6 +227,8 @@ def main():
   &title;
   Ytzl pdwm wj eertW OVO- wgd &xml; ald lixl nj ds epdfafeb <WQU hyb=""tmemc""/>
 </EXAMPLE>""",
+        "sqlite3": """ 	  SELECT @ilM data LIMIT 400;
+  CREATE INrsfror(6,0)-	randomblob(5/0)""",
     }
 
     seed_queue = [example[args.fuzzing_target]]
