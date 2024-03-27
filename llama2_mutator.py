@@ -229,6 +229,9 @@ def main():
 </EXAMPLE>""",
         "sqlite3": """ 	  SELECT @ilM data LIMIT 400;
   CREATE INrsfror(6,0)-	randomblob(5/0)""",
+        "lua": """if b then break elsjjjj= a + 1 end
+     if b then break elsjjjj= a + 1 end
+        end     end""",
     }
 
     seed_queue = [example[args.fuzzing_target]]
