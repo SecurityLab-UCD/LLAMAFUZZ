@@ -99,9 +99,7 @@ def mq_thread():
                 send_msg = struct.pack("I", seed_id_map[seed])
                 if len(seed) > (2045 - len(send_msg)):
                     seed = seed[: (2045 - len(send_msg))]
-                    send_msg = send_msg + seed.encode("utf-8")
-                else:
-                    send_msg = send_msg + seed.encode("utf-8")
+                send_msg = send_msg + seed.encode("utf-8")
                 print(":::send seed", len(send_msg), send_msg[:15])
                 if not args.if_text:
                     mq.send(
