@@ -93,9 +93,10 @@ def mq_thread():
                 if len(seeds_from_fuzzer) > 30:
                     seeds_from_fuzzer.clear()
                 seeds_from_fuzzer.add(msg.decode(errors="ignore")[4:])
-            while message_queue != []:
+            if message_queue != []:
                 # send uid + seed
                 seed = message_queue.pop(0)
+                print(":::send seed", seed[:10])
                 if len(seed) > 2040:
                     seed = seed[:2040]
                 if not args.if_text:
@@ -294,10 +295,10 @@ def main():
             seed_id_map[seed] = uid + os.getpid()
             # id_rwd_map[uid + os.getpid()] = float(0.0)
             message_queue.append(seed)
-            if is_from_fuzzer:
-                print("sff:::", seed[:10])
-            else:
-                print("seed:::", seed[:10])
+            # if is_from_fuzzer:
+            #     print("sff:::", seed[:10])
+            # else:
+            #     print("seed:::", seed[:10])
         uid += 8
         torch.cuda.empty_cache()
 
