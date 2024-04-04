@@ -101,6 +101,9 @@ def mq_thread():
                     seed = seed[: (2045 - len(send_msg))]
                 send_msg = send_msg + seed.encode("utf-8")
                 print(":::send seed", len(send_msg), send_msg[:15])
+                if len(send_msg) >= 2045:
+                    print("::oversize")
+                    continue
                 if not args.if_text:
                     mq.send(
                         send_msg,
