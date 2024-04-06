@@ -93,14 +93,14 @@ def mq_thread():
                 if len(seeds_from_fuzzer) > 30:
                     seeds_from_fuzzer.clear()
                 seeds_from_fuzzer.add(msg.decode(errors="ignore")[4:])
-            if message_queue != []:
+            while message_queue != []:
                 # send uid + seed
                 seed = message_queue.pop(0)
                 send_msg = struct.pack("I", seed_id_map[seed])
                 if len(seed) > (2045 - len(send_msg)):
                     seed = seed[: (2045 - len(send_msg))]
                 send_msg = send_msg + seed.encode("utf-8")
-                print(":::send seed", len(send_msg), send_msg[:15])
+                print(":::send seed", send_msg[:15])
                 if len(send_msg) >= 2045:
                     print("::oversize")
                     continue
