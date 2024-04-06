@@ -100,7 +100,6 @@ def mq_thread():
                 if len(seed) > (2045 - len(send_msg)):
                     seed = seed[: (2045 - len(send_msg))]
                 send_msg = send_msg + seed.encode("utf-8")
-                print(":::send seed", send_msg[:15])
                 if len(send_msg) >= 2045:
                     print("::oversize")
                     continue
@@ -300,10 +299,10 @@ def main():
             seed_id_map[seed] = uid + os.getpid()
             # id_rwd_map[uid + os.getpid()] = float(0.0)
             message_queue.append(seed)
-            # if is_from_fuzzer:
-            #     print("sff:::", seed[:10])
-            # else:
-            #     print("seed:::", seed[:10])
+            if is_from_fuzzer:
+                print("sff:::", seed[:15])
+            else:
+                print("seed:::", seed[:15])
         uid += 8
         torch.cuda.empty_cache()
 
