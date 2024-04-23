@@ -93,6 +93,8 @@ def mq_thread():
                 if len(seeds_from_fuzzer) > 30:
                     seeds_from_fuzzer.clear()
                 seeds_from_fuzzer.add(msg.decode(errors="ignore")[4:])
+            while message_queue == []:
+                mq.receive(type=TYPE_REQUEST)
             if message_queue != []:
                 # send uid + seed
                 seed = message_queue.pop(0)
