@@ -16,11 +16,12 @@ from transformers import (
 
 from trl import SFTTrainer
 
-target = "openssl-asn1"
+target = "kamailio-parse_msg"
 new_model = f"llama-2-7b-structured-{target}-mix-hex-mutator"
-dataset_path = "/home/hxxzhang/dataset/csv/asn1-mix.csv"
+dataset_path = "/home/hxxzhang/dataset/csv/kamailio_fuzz_parse_msg.csv"
 
 device = Accelerator().local_process_index
+
 
 @dataclass
 class ScriptArguments:
@@ -134,7 +135,7 @@ tokenizer = AutoTokenizer.from_pretrained(
     script_args.model_name, trust_remote_code=True, padding=True
 )
 tokenizer.pad_token = tokenizer.bos_token
-tokenizer.padding_side = "left" # Fix weird overflow issue with fp16 training
+tokenizer.padding_side = "left"  # Fix weird overflow issue with fp16 training
 # tokenizer.pad_token = tokenizer.eos_token
 # tokenizer.padding_side = "right"  # Fix weird overflow issue with fp16 training
 
