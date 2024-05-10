@@ -16,9 +16,9 @@ from transformers import (
 
 from trl import SFTTrainer
 
-target = "binutils-objcopy"
+target = "binutils-strings"
 new_model = f"llama-2-7b-structured-{target}-mix-hex-mutator"
-dataset_path = "/home/hxxzhang/dataset/csv/binutils_fuzz_objcopy-aflplusplusqa.csv"
+dataset_path = "/home/hxxzhang/dataset/csv/binutils_fuzz_strings-aflplusplusqa.csv"
 
 device = Accelerator().local_process_index
 
