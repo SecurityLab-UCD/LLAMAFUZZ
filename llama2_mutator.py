@@ -75,20 +75,6 @@ class ScriptArguments:
 args = tyro.cli(ScriptArguments)
 
 
-def mq_thread2():
-    try:
-        mq2 = sysv_ipc.MessageQueue(1234, sysv_ipc.IPC_CREAT)
-    except sysv_ipc.ExistentialError:
-        print(f"Message queue with key {1234} already exists.")
-        return
-    while True:
-        # only receive request msg
-        try:
-            msg, mtype = mq2.receive(type=TYPE_REQUEST)
-        except RuntimeError as e:
-            print(e)
-
-
 def mq_thread():
     """
     Thread to receive request from fuzzer, and send generated seed to fuzzer
@@ -349,10 +335,4 @@ if __name__ == "__main__":
         args=(),
     )
     t.start()
-    t2 = threading.Thread(target=mq_thread2, args=())
-    t2.start()
-    # if accelerator.is_main_process:
-    # t2 = threading.Thread(target=reward_thread, args=())
-    # t2.start()
-    # time.sleep(7200)
     main()
