@@ -24,6 +24,8 @@ To fine-tune the model using the provided script, use the following command:
 python ft_gpu-mutator.py
 ## Running the Llama2 Mutator
 
+Before you start, make sure to replace your authuenticate token. You can get it from huggingface(https://huggingface.co/)
+
 To run the llama2-mutator.py script and start the process of generating structured seeds for fuzzing, use the following command:
 
 'accelerate launch --mixed_precision fp16 structureLLM/llama2_mutator.py --fuzzing_target <fuzzing_target> --fuzzing_object <fuzzing_object> --if_text <True/False>'
