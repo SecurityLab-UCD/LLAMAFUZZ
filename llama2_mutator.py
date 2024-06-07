@@ -27,7 +27,7 @@ TYPE_TEXT_SEED = 2
 TYPE_REWARD = 3
 TYPE_REQUEST = 4
 
-access_token = "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"
+access_token = "YOUR ACCESS TOKEN"
 cur_path = os.path.dirname(os.path.realpath(__file__))
 output_dir = os.path.join(cur_path, "ppo_checkpoint")
 message_queue = []
