@@ -18,7 +18,7 @@ from trl import SFTTrainer
 
 target = "json"
 new_model = f"llama-2-7b-structured-{target}-mix-hex-mutator"
-dataset_path = "/home/hxxzhang/dataset/csv/jsonqa.csv"
+dataset_path = "DATASET PATH"
 
 device = Accelerator().local_process_index
 
