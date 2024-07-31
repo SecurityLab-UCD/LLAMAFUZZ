@@ -253,7 +253,7 @@ $array[-3]
 $string[-3]
 
 EOT;
-?>"""",
+?>""",
         "javascript":"""/* fib module */
 export function fib(n)
 {
