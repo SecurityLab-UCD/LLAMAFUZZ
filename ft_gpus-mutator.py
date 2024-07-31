@@ -16,9 +16,10 @@ from transformers import (
 
 from trl import SFTTrainer
 
-target = "json"
+access_token="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"
+target = "php"
 new_model = f"llama-2-7b-structured-{target}-mix-hex-mutator"
-dataset_path = "/home/hxxzhang/dataset/csv/jsonqa.csv"
+dataset_path = "/home/hxxzhang/llamafuzz-train/unzip/php_php-fuzz-execute-aflplusplusqa2.csv"
 
 device = Accelerator().local_process_index
 
@@ -32,7 +33,7 @@ class ScriptArguments:
         default=20, metadata={"help": "Number of training epochs"}
     )
     per_device_train_batch_size: Optional[int] = field(
-        default=1, metadata={"help": "the per device train batch size"}
+        default=2, metadata={"help": "the per device train batch size"}
     )
     seq_length: Optional[int] = field(
         default=1400, metadata={"help": "the sequence length"}
@@ -151,7 +152,7 @@ base_model = AutoModelForCausalLM.from_pretrained(
     quantization_config=bnb_config,
     device_map={"": Accelerator().local_process_index},
     trust_remote_code=True,
-    use_auth_token=True,
+    token=access_token,
 )
 base_model.config.use_cache = False
 
