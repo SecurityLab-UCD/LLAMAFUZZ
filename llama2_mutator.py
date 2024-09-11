@@ -27,7 +27,7 @@ TYPE_TEXT_SEED = 2
 TYPE_REWARD = 3
 TYPE_REQUEST = 4
 
-access_token = "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"
+access_token = "YOUR_ACCESS_TOKEN"
 cur_path = os.path.dirname(os.path.realpath(__file__))
 output_dir = os.path.join(cur_path, "ppo_checkpoint")
 message_queue = []
@@ -342,8 +342,4 @@ if __name__ == "__main__":
     t.start()
     t2 = threading.Thread(target=mq_thread2, args=())
     t2.start()
-    # if accelerator.is_main_process:
-    # t2 = threading.Thread(target=reward_thread, args=())
-    # t2.start()
-    # time.sleep(7200)
     main()
