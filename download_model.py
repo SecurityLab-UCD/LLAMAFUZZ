@@ -27,7 +27,7 @@ TYPE_TEXT_SEED = 2
 TYPE_REWARD = 3
 TYPE_REQUEST = 4
 
-access_token = "YOUR ACCESS TOKEN"
+access_token = "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"
 # Load model directly
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
