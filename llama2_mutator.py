@@ -168,7 +168,7 @@ def main():
         model_name = "meta-llama/Llama-2-7b-chat-hf"
     # Init the tokenizer and dataset
     tokenizer = AutoTokenizer.from_pretrained(
-        os.path.join(cur_path, model_name),
+        "meta-llama/Llama-2-7b-chat-hf",
         use_fast=True,
         token=access_token,
     )
@@ -188,7 +188,7 @@ def main():
     device_map = {"": current_device}
 
     model = AutoModelForCausalLMWithValueHead.from_pretrained(
-        os.path.join(cur_path, model_name),
+        "meta-llama/Llama-2-7b-chat-hf",
         trust_remote_code=args.trust_remote_code,
         device_map=device_map,
         peft_config=peft_config,
